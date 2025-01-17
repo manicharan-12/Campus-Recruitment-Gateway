@@ -1,22 +1,39 @@
 // src/redux/authSlice.js
 import { createSlice } from "@reduxjs/toolkit";
+import Cookies from "js-cookie";
+import {jwtDecode} from "jwt-decode";
 
-// Log the default value of userRole
-console.log("Default value of userRole: null");
+const initialState = {
+  token: null,
+  role: null,
+};
 
 const authSlice = createSlice({
   name: "auth",
-  initialState: {
-    userRole: null,
-  },
+  initialState,
   reducers: {
-    setUserRole: (state, action) => {
-      console.log("setUserRole action payload:", action.payload);
-      state.userRole = action.payload;
+    setTokenAndRole(state, action) {
+      const token = action.payload;
+      if (token) {
+        const decoded = jwtDecode(token);
+        state.token = token;
+        state.role = decoded.role;
+      }
+    },
+    clearAuth(state) {
+      state.token = null;
+      state.role = null;
     },
   },
 });
 
-export const { setUserRole } = authSlice.actions;
-
+export const { setTokenAndRole, clearAuth } = authSlice.actions;
 export default authSlice.reducer;
+
+// Helper to initialize auth from cookies
+export const initializeAuth = () => (dispatch) => {
+  const token = Cookies.get("userCookie");
+  if (token) {
+    dispatch(setTokenAndRole(token));
+  }
+};

@@ -9,7 +9,6 @@ import {
   LayoutDashboard,
   Users,
   University,
-  User,
 } from "lucide-react";
 import { PiStudent } from "react-icons/pi";
 

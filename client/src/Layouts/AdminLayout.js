@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { useSelector } from "react-redux";
 import AdminSidebar from "../components/Global/Sidebar/AdminSidebar";
 import Header from "../components/Global/Header";
+import { Outlet } from "react-router-dom";
 
 const AdminLayout = ({ children }) => {
   const isOpen = useSelector((state) => state.adminSidebar.isOpen);
@@ -33,7 +34,10 @@ const AdminLayout = ({ children }) => {
             marginTop: "44px",
           }}
         >
-          <div className="max-w-7xl mx-auto">{children}</div>
+          <div className="max-w-7xl mx-auto">
+          {/* {children} */}
+          <Outlet/>
+          </div>
         </motion.main>
       </div>
     </div>

@@ -41,7 +41,7 @@ const Dashboard = () => {
     );
   };
 
-  const { data, isLoading, isError, error, isFetching, fetch } = useQuery({
+  const { data, isLoading, isError, error } = useQuery({
     queryKey: ["admin", "dashboard"],
     queryFn: fetchDashboardData,
   });

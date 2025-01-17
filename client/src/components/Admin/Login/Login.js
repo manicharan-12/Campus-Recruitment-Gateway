@@ -3,11 +3,12 @@ import { motion } from "framer-motion";
 import { useMutation } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
-import CompanyBackground from "./DecorativeBackground";
+import { useSelector, useDispatch } from "react-redux";
 import Cookies from "js-cookie";
 import { toast, Bounce } from "react-toastify";
-import { useAuth } from "../../../contexts/AuthContext";
 import axios from "axios";
+import { setTokenAndRole  } from "../../../redux/authSlice"; 
+import CompanyBackground from "./DecorativeBackground";
 
 const FormInput = React.memo(
   ({
@@ -61,14 +62,15 @@ const FormInput = React.memo(
 
 const AdminLogin = () => {
   const navigate = useNavigate();
-  const cookie = Cookies.get("userCookie");
-  const { login } = useAuth();
+  const dispatch = useDispatch();
+  const authToken = useSelector((state) => state.auth.token);
+  
 
   useEffect(() => {
-    if (cookie !== undefined) {
+    if (authToken || Cookies.get("userCookie")) {
       navigate("/admin/dashboard");
     }
-  }, [cookie, navigate]);
+  }, [authToken, navigate]);
 
   const {
     register,
@@ -113,21 +115,17 @@ const AdminLogin = () => {
     onSuccess: async (data) => {
       if (data) {
         Cookies.set("userCookie", data.token);
-        login(data.token);
-        console.log(JSON.stringify(data));
-
-        await toast.success(`${data.message}`, {
+        dispatch(setTokenAndRole (data.token)); 
+        toast.success(`${data.message}`, {
           position: "bottom-center",
           autoClose: 5000,
           hideProgressBar: true,
           closeOnClick: true,
           pauseOnHover: true,
           draggable: true,
-          progress: undefined,
           theme: "light",
           transition: Bounce,
         });
-
         navigate("/admin/dashboard");
         reset();
       } else {
