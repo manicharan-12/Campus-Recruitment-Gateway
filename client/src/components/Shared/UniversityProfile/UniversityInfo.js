@@ -3,10 +3,12 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Mail, MapPin, Globe, Upload, X } from "lucide-react";
 import axios from "axios";
 import Cookies from "js-cookie";
+import DegreePrograms from "./DegreePrograms";
 
-const UniversityInfo = ({ university, universityId }) => {
+const UniversityInfo = ({ university, universityId, degreePrograms }) => {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [programs, setPrograms] = useState(degreePrograms || []);
   const jwtToken = Cookies.get("userCookie");
   const queryClient = useQueryClient();
 
@@ -112,6 +114,11 @@ const UniversityInfo = ({ university, universityId }) => {
           </div>
         </div>
       </div>
+      <DegreePrograms
+        universityId={universityId}
+        programs={programs}
+        onUpdatePrograms={setPrograms}
+      />
     </div>
   );
 };

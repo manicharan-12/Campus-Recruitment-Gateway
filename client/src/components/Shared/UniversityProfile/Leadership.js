@@ -1,24 +1,44 @@
 import React, { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Search } from "lucide-react";
+import { Plus, Search, Loader2 } from "lucide-react";
 import axios from "axios";
 import Cookies from "js-cookie";
 import FacultyCard from "./FacultyCard";
 import Modal from "../../Global/Modal";
 import { useForm } from "react-hook-form";
+import { toast } from "react-toastify";
+import { getUserRole } from "../../../utils/auth";
+import NoItems from "../../Global/noItems";
 
 const Leadership = ({ headFaculty, coordinators, universityId }) => {
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [isAddFacultyModalOpen, setIsAddFacultyModalOpen] = useState(false);
   const [newFacultyRole, setNewFacultyRole] = useState("Coordinator");
+
   const itemsPerPage = 4;
   const jwtToken = Cookies.get("userCookie");
   const queryClient = useQueryClient();
 
+  const userRole = getUserRole();
+  const hasAdminAccess = ["super admin", "admin"].includes(userRole);
+
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors },
+  } = useForm({
+    defaultValues: {
+      name: "",
+      email: "",
+      phoneNumber: "",
+    },
+  });
+
   const addFacultyMutation = useMutation({
     mutationFn: async (newFacultyData) => {
-      await axios.post(
+      const response = await axios.post(
         `${process.env.REACT_APP_SERVER_API_URL}/admin/faculty`,
         {
           ...newFacultyData,
@@ -28,14 +48,20 @@ const Leadership = ({ headFaculty, coordinators, universityId }) => {
           headers: { Authorization: `Bearer ${jwtToken}` },
         }
       );
+      return response.data;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries(["university", universityId]);
+      toast.success(`${data.message}`);
+      reset();
       setIsAddFacultyModalOpen(false);
     },
+    onError: (error) => {
+      toast.error(
+        error.response?.data?.message || "Failed to add faculty member"
+      );
+    },
   });
-
-  const { register, handleSubmit, reset } = useForm();
 
   const filteredCoordinators = coordinators.filter(
     (faculty) =>
@@ -51,25 +77,24 @@ const Leadership = ({ headFaculty, coordinators, universityId }) => {
 
   const onSubmit = (data) => {
     addFacultyMutation.mutate({
-      name: data.name,
-      email: data.email,
-      phoneNumber: data.phoneNumber,
+      ...data,
       role: newFacultyRole,
     });
-    reset(); // Reset the form after submission
   };
-  console.log(headFaculty);
+
   return (
     <div className="bg-white rounded-lg shadow-sm p-8 mb-8">
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-2xl font-semibold text-gray-900">Leadership</h2>
-        <button
-          className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
-          onClick={() => setIsAddFacultyModalOpen(true)}
-        >
-          <Plus className="h-4 w-4" />
-          Add Faculty
-        </button>
+        {hasAdminAccess && (
+          <button
+            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
+            onClick={() => setIsAddFacultyModalOpen(true)}
+          >
+            <Plus className="h-4 w-4" />
+            Add Faculty
+          </button>
+        )}
       </div>
 
       {/* Head Profile */}
@@ -77,15 +102,23 @@ const Leadership = ({ headFaculty, coordinators, universityId }) => {
         <h3 className="text-xl font-semibold text-indigo-600 mb-4">
           Head of Institution
         </h3>
-        <div className="flex flex-wrap gap-6">
-          {headFaculty.map((faculty) => (
-            <FacultyCard key={faculty._id} faculty={faculty} />
-          ))}
-        </div>
+        {headFaculty.length !== 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {headFaculty.map((faculty) => (
+              <FacultyCard
+                key={faculty._id}
+                faculty={faculty}
+                universityId={universityId}
+              />
+            ))}
+          </div>
+        ) : (
+          <NoItems />
+        )}
       </div>
 
       {/* Coordinators */}
-      <div className="mb-8">
+      <div>
         <div className="flex justify-between items-center mb-4">
           <h3 className="text-xl font-semibold text-indigo-600">
             Coordinators
@@ -104,11 +137,21 @@ const Leadership = ({ headFaculty, coordinators, universityId }) => {
             />
           </div>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {paginatedCoordinators.map((faculty) => (
-            <FacultyCard key={faculty._id} faculty={faculty} />
-          ))}
-        </div>
+        {paginatedCoordinators.length !== 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {paginatedCoordinators.map((faculty) => (
+              <FacultyCard
+                key={faculty._id}
+                faculty={faculty}
+                universityId={universityId}
+              />
+            ))}
+          </div>
+        ) : (
+          <>
+            <NoItems />
+          </>
+        )}
         {totalPages > 1 && (
           <div className="flex justify-center items-center mt-6 gap-2">
             <button
@@ -144,10 +187,15 @@ const Leadership = ({ headFaculty, coordinators, universityId }) => {
         )}
       </div>
 
-      {isAddFacultyModalOpen && (
+      {hasAdminAccess && isAddFacultyModalOpen && (
         <Modal
           title="Add New Faculty"
-          onClose={() => setIsAddFacultyModalOpen(false)}
+          onClose={() => {
+            if (!addFacultyMutation.isLoading) {
+              reset();
+              setIsAddFacultyModalOpen(false);
+            }
+          }}
         >
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <div>
@@ -156,9 +204,23 @@ const Leadership = ({ headFaculty, coordinators, universityId }) => {
               </label>
               <input
                 type="text"
-                {...register("name", { required: true })}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                placeholder="Dr. Jane Smith"
+                {...register("name", {
+                  required: "Name is required",
+                  minLength: {
+                    value: 2,
+                    message: "Name must be at least 2 characters",
+                  },
+                })}
+                className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 ${
+                  errors.name ? "border-red-500" : ""
+                }`}
               />
+              {errors.name && (
+                <p className="mt-1 text-sm text-red-600">
+                  {errors.name.message}
+                </p>
+              )}
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700">
@@ -166,19 +228,47 @@ const Leadership = ({ headFaculty, coordinators, universityId }) => {
               </label>
               <input
                 type="email"
-                {...register("email", { required: true })}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                placeholder="jane.smith@university.edu"
+                {...register("email", {
+                  required: "Email is required",
+                  pattern: {
+                    value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
+                    message: "Invalid email address",
+                  },
+                })}
+                className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 ${
+                  errors.email ? "border-red-500" : ""
+                }`}
               />
+              {errors.email && (
+                <p className="mt-1 text-sm text-red-600">
+                  {errors.email.message}
+                </p>
+              )}
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700">
-                phone Number
+                Phone Number
               </label>
               <input
                 type="text"
-                {...register("phoneNumber", { required: true })}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                placeholder="9870654321"
+                {...register("phoneNumber", {
+                  required: "Phone number is required",
+                  pattern: {
+                    value: /^\d+$/,
+                    message: "Invalid phone number",
+                  },
+                })}
+                className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 ${
+                  errors.phoneNumber ? "border-red-500" : ""
+                }`}
               />
+              {errors.phoneNumber && (
+                <p className="mt-1 text-sm text-red-600">
+                  {errors.phoneNumber.message}
+                </p>
+              )}
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700">
@@ -196,17 +286,30 @@ const Leadership = ({ headFaculty, coordinators, universityId }) => {
             <div className="flex justify-end gap-4">
               <button
                 type="button"
-                onClick={() => setIsAddFacultyModalOpen(false)}
-                className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50"
+                onClick={() => {
+                  if (!addFacultyMutation.isLoading) {
+                    reset();
+                    setIsAddFacultyModalOpen(false);
+                  }
+                }}
+                disabled={addFacultyMutation.isLoading}
+                className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={addFacultyMutation.isLoading}
-                className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
+                className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50"
               >
-                Add Faculty
+                {addFacultyMutation.isLoading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Adding...
+                  </>
+                ) : (
+                  "Add Faculty"
+                )}
               </button>
             </div>
           </form>

@@ -1,96 +1,195 @@
-import React from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import React, { useCallback, useMemo } from "react";
+import { Link } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { toggleSidebar } from "../../../redux/facultySidebarSlice";
+import { motion, AnimatePresence } from "framer-motion";
+import { SiGoogleforms } from "react-icons/si";
+import { PiStudent } from "react-icons/pi";
+import {
+  ChevronLeft,
+  ChevronRight,
+  LayoutDashboard,
+  Users,
+  SlidersHorizontal,
+  ChartPie,
+} from "lucide-react";
+
+const sidebarVariants = {
+  expanded: { width: "240px" },
+  collapsed: { width: "60px" },
+};
+
+const menuItemVariants = {
+  hover: { x: 4 },
+  tap: { scale: 0.98 },
+};
+
+const iconContainerVariants = {
+  hover: { y: -2 },
+  initial: { y: 0 },
+};
+
+const MENU_ITEMS = [
+  {
+    icon: LayoutDashboard,
+    label: "Dashboard",
+    path: "/faculty/dashboard",
+    ariaLabel: "Navigate to Dashboard",
+  },
+  {
+    icon: Users,
+    label: "Team",
+    path: "/faculty/team",
+    ariaLabel: "Navigate to Team Management",
+  },
+  {
+    icon: PiStudent,
+    label: "Students",
+    path: "/faculty/students",
+    ariaLabel: "Navigate to Students",
+  },
+  {
+    icon: SlidersHorizontal,
+    label: "Filter and Download",
+    path: "/faculty/filter/student",
+    ariaLabel: "Navigate to Filter and Download",
+  },
+  {
+    icon: ChartPie,
+    label: "Analytics",
+    path: "/faculty/analytics",
+    ariaLabel: "Navigate to Analytics",
+  },
+  {
+    icon: SiGoogleforms,
+    label: "Forms",
+    path: "/faculty/forms",
+    ariaLabel: "Navigate to Forms",
+  },
+];
+
+const MenuItem = React.memo(({ item, isOpen }) => {
+  const IconComponent = item.icon; 
+  return (
+    <motion.div
+      className="group flex items-center mb-2 cursor-pointer rounded-lg transition-colors"
+      variants={menuItemVariants}
+      whileHover="hover"
+      whileTap="tap"
+      aria-label={item.ariaLabel}
+      role="menuitem"
+      data-testid={`menu-item-${item.label.toLowerCase()}`}
+    >
+      <Link
+        to={item.path}
+        className={`
+          flex items-center
+          ${
+            isOpen
+              ? "p-2 hover:bg-green-50 w-full"
+              : "p-1 hover:bg-green-50 justify-center"
+          }
+        `}
+      >
+        <motion.span
+          className={`
+            flex items-center justify-center bg-indigo-600
+             text-white rounded-full transition-all
+            ${isOpen ? "p-2 min-w-[40px]" : "p-1.5 w-8 h-8"}
+          `}
+          variants={iconContainerVariants}
+          initial="initial"
+        >
+          <IconComponent size={24} />
+        </motion.span>
+
+        <AnimatePresence>
+          {isOpen && (
+            <motion.div
+              initial={{ opacity: 0, x: -10 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -10 }}
+              transition={{ duration: 0.2 }}
+              className="flex justify-between items-center w-full ml-4 whitespace-nowrap"
+            >
+              <span className="text-base font-medium">{item.label}</span>
+              {item.count !== undefined && (
+                <motion.span
+                  className="ml-auto text-xs bg-indigo-500 text-white rounded-full px-2 py-1"
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  transition={{ delay: 0.1 }}
+                >
+                  {item.count}
+                </motion.span>
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </Link>
+    </motion.div>
+  );
+});
+
+MenuItem.displayName = "MenuItem";
 
 const FacultySidebar = () => {
   const isOpen = useSelector((state) => state.facultySidebar.isOpen);
   const dispatch = useDispatch();
 
-  const menuItems = [
-    { icon: "👥", label: "Classes", count: 4 },
-    { icon: "📊", label: "Gradebook" },
-    { icon: "🕒", label: "Office Hours", count: 2 },
-    { icon: "📑", label: "Curriculum" },
-    { icon: "🔬", label: "Research", count: 3 },
-  ];
+  const handleToggle = useCallback(() => {
+    dispatch(toggleSidebar());
+  }, [dispatch]);
+
+  const toggleIcon = useMemo(() => {
+    return isOpen ? <ChevronLeft size={24} /> : <ChevronRight size={24} />;
+  }, [isOpen]);
 
   return (
     <motion.div
-      className="fixed left-0 top-0 h-screen bg-white text-gray-800 p-4 flex flex-col shadow-lg"
-      initial={{ width: "60px" }}
-      animate={{ width: isOpen ? "240px" : "60px" }}
+      className="h-full bg-white text-gray-800 shadow-lg z-10 flex flex-col"
+      variants={sidebarVariants}
+      initial="collapsed"
+      animate={isOpen ? "expanded" : "collapsed"}
       transition={{ duration: 0.3, ease: "easeInOut" }}
+      role="navigation"
+      aria-label="Main Navigation"
     >
-      <motion.button
-        className="self-end mb-8 bg-gray-200 rounded-full p-2"
-        onClick={() => dispatch(toggleSidebar())}
-        whileHover={{ scale: 1.1, rotate: 180 }}
-        whileTap={{ scale: 0.9 }}
-      >
-        {isOpen ? "←" : "→"}
-      </motion.button>
-      {menuItems.map((item, index) => (
-        <motion.div
-          key={index}
-          className="flex items-center mb-6 cursor-pointer group"
-          whileHover={{ x: 10, color: "#10B981" }}
+      <div className="p-4 flex items-center justify-between pb-0">
+        <AnimatePresence>
+          {isOpen && (
+            <motion.div
+              className="flex items-center space-x-2"
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              transition={{ duration: 0.3 }}
+            />
+          )}
+        </AnimatePresence>
+        <motion.button
+          className="text-xl hover:bg-gray-100 rounded-full"
+          onClick={handleToggle}
+          whileHover={{ scale: 1.1 }}
+          whileTap={{ scale: 0.9 }}
+          aria-label={isOpen ? "Collapse sidebar" : "Expand sidebar"}
+          data-testid="sidebar-toggle"
         >
-          <motion.span
-            className="text-2xl mr-4 bg-gray-100 rounded-full p-2"
-            whileHover={{ rotate: 360 }}
-            transition={{ duration: 0.5 }}
-          >
-            {item.icon}
-          </motion.span>
-          <AnimatePresence>
-            {isOpen && (
-              <motion.div
-                initial={{ opacity: 0, y: -20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -20 }}
-                transition={{ duration: 0.2 }}
-                className="flex justify-between items-center w-full"
-              >
-                <span className="text-lg">{item.label}</span>
-                {item.count !== undefined && (
-                  <motion.span
-                    className="bg-green-500 text-white rounded-full px-2 py-1 text-xs"
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    transition={{ delay: 0.1 }}
-                  >
-                    {item.count}
-                  </motion.span>
-                )}
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </motion.div>
-      ))}
-      <motion.div
-        className="mt-auto bg-gray-100 rounded-lg p-4"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 0.5 }}
+          {toggleIcon}
+        </motion.button>
+      </div>
+
+      <nav
+        className="flex-1 overflow-y-auto px-2 py-4"
+        role="menu"
+        aria-label="Faculty Sidebar Navigation Menu"
       >
-        <div className="text-sm font-semibold">Today's Schedule</div>
-        <motion.div
-          className="mt-2 h-4 bg-gray-200 rounded"
-          initial={{ width: 0 }}
-          animate={{ width: "100%" }}
-          transition={{ delay: 0.7, duration: 1 }}
-        >
-          <motion.div
-            className="h-full bg-green-500 rounded"
-            initial={{ width: 0 }}
-            animate={{ width: "60%" }}
-            transition={{ delay: 1, duration: 0.5 }}
-          />
-        </motion.div>
-      </motion.div>
+        {MENU_ITEMS.map((item) => (
+          <MenuItem key={item.path} item={item} isOpen={isOpen} />
+        ))}
+      </nav>
     </motion.div>
   );
 };
 
-export default FacultySidebar;
+export default React.memo(FacultySidebar);

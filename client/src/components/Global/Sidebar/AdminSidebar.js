@@ -12,7 +12,6 @@ import {
 } from "lucide-react";
 import { PiStudent } from "react-icons/pi";
 
-
 const sidebarVariants = {
   expanded: { width: "240px" },
   collapsed: { width: "60px" },
@@ -50,14 +49,13 @@ const MENU_ITEMS = [
   {
     icon: PiStudent,
     label: "Students",
-    path: "/admin/students/data",
+    path: "/admin/students",
     ariaLabel: "Navigate to list of students",
   },
 ];
 
 const MenuItem = React.memo(({ item, isOpen }) => {
-  const Icon = item.icon;
-
+  const IconComponent = item.icon; // Store the icon component in a variable
   return (
     <motion.div
       className="group flex items-center mb-2 cursor-pointer rounded-lg transition-colors"
@@ -86,10 +84,9 @@ const MenuItem = React.memo(({ item, isOpen }) => {
             ${isOpen ? "p-2 min-w-[40px]" : "p-1.5 w-8 h-8"}
           `}
           variants={iconContainerVariants}
-          whileHover="hover"
           initial="initial"
         >
-          <Icon size={isOpen ? 20 : 16} />
+          <IconComponent size={24} />
         </motion.span>
 
         <AnimatePresence>
@@ -104,7 +101,7 @@ const MenuItem = React.memo(({ item, isOpen }) => {
               <span className="text-base font-medium">{item.label}</span>
               {item.count !== undefined && (
                 <motion.span
-                  className="ml-auto text-xs bg-indigo-600 text-white rounded-full px-2 py-1"
+                  className="ml-auto text-xs bg-indigo-500 text-white rounded-full px-2 py-1"
                   initial={{ scale: 0 }}
                   animate={{ scale: 1 }}
                   transition={{ delay: 0.1 }}
@@ -153,7 +150,7 @@ const AdminSidebar = () => {
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -20 }}
               transition={{ duration: 0.3 }}
-            ></motion.div>
+            />
           )}
         </AnimatePresence>
         <motion.button
@@ -171,7 +168,7 @@ const AdminSidebar = () => {
       <nav
         className="flex-1 overflow-y-auto px-2 py-4 "
         role="menu"
-        aria-label="Sidebar Navigation Menu"
+        aria-label="Admin Sidebar Navigation Menu"
       >
         {MENU_ITEMS.map((item) => (
           <MenuItem key={item.path} item={item} isOpen={isOpen} />

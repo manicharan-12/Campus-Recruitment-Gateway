@@ -48,6 +48,25 @@ const universitySchema = new mongoose.Schema(
         ref: "Faculty",
       },
     ],
+    students: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Student",
+      },
+    ],
+    degreePrograms: [
+      {
+        programName: {
+          type: String,
+          required: ["Program name is required"],
+        },
+        branches: [
+          {
+            type: String,
+          },
+        ],
+      },
+    ],
   },
   {
     timestamps: true,

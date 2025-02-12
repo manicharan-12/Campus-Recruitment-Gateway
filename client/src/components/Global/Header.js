@@ -1,9 +1,11 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useDispatch } from "react-redux";
 import { motion, AnimatePresence } from "framer-motion";
 import { Bell, Settings, LogOut, User } from "lucide-react";
-import { useSelector } from "react-redux";
 import Cookies from "js-cookie";
+import { clearAuth } from "../../redux/authSlice";
+import { getUserRole } from "../../utils/auth";
 
 const Header = () => {
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
@@ -24,7 +26,7 @@ const Header = () => {
       <div className="container mx-auto px-4 flex items-center justify-between h-full">
         <div className="flex items-center space-x-2">
           <h1 className="text-2xl font-bold text-indigo-600">
-            Smart Recruiter Platform
+            Campus Recruitment Gateway
           </h1>
         </div>
 
@@ -83,19 +85,45 @@ const NotificationPanel = () => (
 );
 
 const ProfileDropdown = () => {
-  const userRole = useSelector((state) => state.auth.userRole);
   const navigate = useNavigate();
-  const handleLogout = () => {
-    Cookies.remove("userCookie");
-    navigate(`/login/${userRole}`);
+  const dispatch = useDispatch();
+  const role = getUserRole();
+
+  const getLoginPath = (userRole) => {
+    const loginPaths = {
+      "super admin": "/login/admin",
+      admin: "/login/admin",
+      head: "/login/faculty",
+      coordinator: "/login/faculty",
+      student: "/login/student",
+    };
+    return loginPaths[userRole] || "/login/student";
   };
 
-  const openProfileComponent=()=>{
-    navigate("/user/profile")
-  }
+  const handleLogout = () => {
+    try {
+      // Remove the cookie
+      Cookies.remove("userCookie");
+
+      // Clear the auth state in Redux
+      dispatch(clearAuth());
+
+      // Get the appropriate login path based on user role
+      const loginPath = getLoginPath(role);
+
+      // Navigate to login page - this will trigger ProtectedRoute's logic
+      navigate(loginPath, { replace: true });
+    } catch (error) {
+      console.error("Logout failed:", error);
+    }
+  };
+
+  const openProfileComponent = () => {
+    navigate("/user/profile");
+  };
 
   const menuItems = [
-    { icon: User, text: "Profile", onClick:openProfileComponent },
+    { icon: User, text: "Profile", onClick: openProfileComponent },
     { icon: Settings, text: "Settings", href: "#" },
     { icon: LogOut, text: "Logout", onClick: handleLogout },
   ];

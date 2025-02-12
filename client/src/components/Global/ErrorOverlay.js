@@ -2,14 +2,26 @@ import React from "react";
 import { AlertOctagon } from "lucide-react";
 import Cookies from "js-cookie";
 import { useNavigate } from "react-router-dom";
+import { useDispatch } from "react-redux";
+import { clearAuth } from "../../redux/authSlice";
+import { getUserRole } from "../../utils/auth";
 
 const ErrorOverlay = ({ statusCode }) => {
   const navigate = useNavigate();
+  const dispatch = useDispatch();
+  const role = getUserRole();
 
   const onClickLogin = () => {
     try {
       Cookies.remove("userCookie");
-      navigate("/login/student");
+      dispatch(clearAuth());
+      if (role === "admin" || role === "super admin") {
+        navigate("/login/admin");
+      } else if (role === "head" || role === "coordinator") {
+        navigate("/login/faculty");
+      } else {
+        navigate("/login/student");
+      }
     } catch (error) {
       console.error(error);
     }

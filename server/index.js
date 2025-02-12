@@ -5,19 +5,27 @@ const cors = require("cors");
 const cron = require("node-cron");
 require("dotenv").config();
 
-const adminRoutes = require("./routes/admin/adminRoute");
-const sharedRoutes = require("./routes/shared/sharedRoute");
+const AdminRoutes = require("./routes/admin/adminRoute");
+const FacultyRoutes = require("./routes/faculty/facultyRoutes");
+const SharedRoutes = require("./routes/shared/sharedRoute");
+const StudentRoutes = require("./routes/student/studentRoutes");
 
 const { connectDB } = require("./config/db.js");
 
+const { scheduleProfileUpdateReminders } = require("./services/cronJobs");
+
 const app = express();
 
+app.use(cors({ origin: "http://localhost:3000", credentials: true }));
 app.use(express.json());
-app.use(cors({ origin: "http://localhost:3000" }));
 connectDB();
 
-app.use("/admin", adminRoutes);
-app.use("/", sharedRoutes);
+scheduleProfileUpdateReminders();
+
+app.use("/admin", AdminRoutes);
+app.use("/faculty", FacultyRoutes);
+app.use("/student", StudentRoutes);
+app.use("/", SharedRoutes);
 
 PORT = 6969;
 app.listen(PORT, () => {

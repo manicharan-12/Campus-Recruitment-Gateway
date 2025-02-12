@@ -3,7 +3,13 @@ const multer = require("multer");
 const storage = multer.memoryStorage();
 const fileFilter = (req, file, cb) => {
   // Add file type validation
-  const allowedTypes = ["image/jpeg", "image/png", "image/gif"];
+  const allowedTypes = [
+    "image/jpeg",
+    "image/png",
+    "application/pdf",
+    "application/msword",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  ];
 
   if (allowedTypes.includes(file.mimetype)) {
     cb(null, true);

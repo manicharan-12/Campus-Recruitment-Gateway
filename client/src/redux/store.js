@@ -4,6 +4,7 @@ import authReducer from "./authSlice";
 import studentSidebarReducer from "./studentSidebarSlice";
 import facultySidebarReducer from "./facultySidebarSlice";
 import adminSidebarReducer from "./adminSidebarSlice";
+import fileUploadReducer from "./fileUploadSlice";
 
 export const store = configureStore({
   reducer: {
@@ -11,5 +12,6 @@ export const store = configureStore({
     studentSidebar: studentSidebarReducer,
     facultySidebar: facultySidebarReducer,
     adminSidebar: adminSidebarReducer,
+    fileUpload: fileUploadReducer,
   },
 });

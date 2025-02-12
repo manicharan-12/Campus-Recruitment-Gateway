@@ -1,12 +1,19 @@
 /** @type {import('tailwindcss').Config} */
-const defaultTheme = require("tailwindcss/defaultTheme");
-
 module.exports = {
-  content: ["./src/**/*.{js,jsx,ts,tsx}"],
+  darkMode: ["class"],
+  content: [
+    "./pages/**/*.{js,jsx}",
+    "./components/**/*.{js,jsx}",
+    "./app/**/*.{js,jsx}",
+    "./src/**/*.{js,jsx}",
+  ],
   theme: {
     extend: {
-      fontFamily: {
-        sans: ["InterVariable", ...defaultTheme.fontFamily.sans],
+      colors: {
+        destructive: {
+          DEFAULT: "rgb(239 68 68)",
+          foreground: "rgb(255 255 255)",
+        },
       },
     },
   },

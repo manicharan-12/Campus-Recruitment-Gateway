@@ -33,7 +33,3 @@ export const getUserId = () => {
     return "";
   }
 };
-
-export const isValidUserType = (userType) => {
-  return ["admin", "student", "faculty"].includes(userType.toLowerCase());
-};

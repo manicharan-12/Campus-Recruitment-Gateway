@@ -2,7 +2,7 @@ const Admin = require("../../models/Admin");
 
 exports.dashboard = async (req, res) => {
   try {
-    const { id } = req.user;
+    const { id } = req.admin;
     const adminData = await Admin.findById(id);
 
     if (!adminData) {

@@ -7,6 +7,7 @@ const universityController = require("../../controller/admin/universityControlle
 const facultyController = require("../../controller/admin/facultyController");
 const verifyTokenAndRole = require("../../middleware/Admin/verifyTokenAndRole");
 const { upload } = require("../../middleware/fileUpload");
+const verifyToken = require("../../middleware/Shared/verifyToken");
 
 router.post("/login", adminController.login);
 router.get("/dashboard", verifyTokenAndRole(), dashboardController.dashboard);
@@ -31,9 +32,21 @@ router.delete(
 
 router.put(
   "/university/:id",
-  verifyTokenAndRole(),
+  verifyToken(),
   universityController.editUniversity
 );
-router.post("/faculty", verifyTokenAndRole(), facultyController.addFacultyData);
+router.post("/faculty", verifyToken(), facultyController.addFacultyData);
+router.put(
+  "/faculty/updatePassword/:id",
+  verifyToken(),
+  facultyController.changePassword
+);
+router.put("/faculty/:id", verifyToken(), facultyController.updateFaculty);
+router.put(
+  "/faculty/:id/toggleStatus",
+  verifyToken(),
+  facultyController.toggleFacultyStatus
+);
+router.delete("/faculty/:id", verifyToken(), facultyController.deleteFaculty);
 
 module.exports = router;

@@ -1,40 +1,46 @@
+// src/Auth/ProtectedRoute.js
 import React from "react";
 import { Navigate } from "react-router-dom";
 import { useSelector } from "react-redux";
+import LoadingOverlay from "../components/Global/LoadingOverlay";
 
 const ProtectedRoute = ({ allowedRoles, children }) => {
-  const { token, role } = useSelector((state) => state.auth);
-  
-  // If no token, redirect to the appropriate login page based on role
+  const { token, role, isInitialized } = useSelector((state) => state.auth);
+
+  if (!isInitialized) {
+    return <LoadingOverlay />; // Use a loading component instead of null
+  }
+
+  // First, check if token exists and role is allowed
   if (!token) {
-    if (allowedRoles.includes("Admin") || allowedRoles.includes("Super Admin")) {
-      return <Navigate to="/login/admin" />;
-    } else if (allowedRoles.includes("Head") || allowedRoles.includes("Coordinator")) {
-      return <Navigate to="/login/faculty" />;
-    } else {
-      return <Navigate to="/login/student" />;
-    }
+    // Redirect to specific login based on route requirements
+    const loginRoutes = {
+      Admin: "/login/admin",
+      "Super Admin": "/login/admin",
+      Head: "/login/faculty",
+      Coordinator: "/login/faculty",
+      Student: "/login/student",
+    };
+
+    const defaultLoginRoute = loginRoutes[allowedRoles[0]] || "/login/student";
+    return <Navigate to={defaultLoginRoute} replace />;
   }
 
-  // If the token exists, but the role does not match, redirect to a different route
-  if (token && !allowedRoles.includes(role)) {
-    // If the role does not match, redirect based on the current user's role
-    switch (role) {
-      case "Super Admin":
-      case "Admin":
-        return <Navigate to="/admin/dashboard" />;
-      case "Head":
-      case "Coordinator":
-        return <Navigate to="/faculty/dashboard" />;
-      case "Student":
-        return <Navigate to="/student/dashboard" />;
-      default:
-        return <Navigate to="/" />;
-    }
+  // Check if user's role matches allowed roles
+  if (!allowedRoles.includes(role)) {
+    const dashboardRoutes = {
+      "Super Admin": "/admin/dashboard",
+      Admin: "/admin/dashboard",
+      Head: "/faculty/dashboard",
+      Coordinator: "/faculty/dashboard",
+      Student: "/student/dashboard",
+    };
+
+    const defaultDashboard = dashboardRoutes[role] || "/";
+    return <Navigate to={defaultDashboard} replace />;
   }
 
-  // If authorized, render the children components
-  return <>{children}</>;
+  return children;
 };
 
 export default ProtectedRoute;

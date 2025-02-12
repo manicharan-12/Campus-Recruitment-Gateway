@@ -1,20 +1,16 @@
-import React from "react";
+import React, { useEffect, useCallback, useMemo } from "react";
 import { motion } from "framer-motion";
-import { useMutation } from "@tanstack/react-query";
-import { useForm } from "react-hook-form";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useForm, Controller } from "react-hook-form";
 import FacultyBackground from "./DecorativeBackground";
+import { useNavigate } from "react-router-dom";
+import { useSelector, useDispatch } from "react-redux";
+import Cookies from "js-cookie";
+import { setTokenAndRole } from "../../../redux/authSlice";
+import { Alert, AlertDescription, AlertTitle } from "../../ui/alert";
 
-const FormInput = React.memo(
-  ({
-    register,
-    name,
-    type,
-    label,
-    error,
-    disabled,
-    placeholder,
-    initialAnimation,
-  }) => (
+const FormField = React.memo(
+  ({ control, name, type, label, disabled, placeholder, initialAnimation }) => (
     <motion.div
       initial={initialAnimation}
       animate={{ x: 0, opacity: 1 }}
@@ -23,43 +19,55 @@ const FormInput = React.memo(
       <label htmlFor={name} className="block text-sm font-medium text-gray-700">
         {label}
       </label>
-      <input
-        {...register(name, {
+      <Controller
+        name={name}
+        control={control}
+        rules={{
           required: `${label} is required`,
-          ...(name === "studentId" && {
+          ...(name === "email" && {
             pattern: {
               value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
               message: "Invalid email address",
             },
           }),
-        })}
-        type={type}
-        id={name}
-        className={`mt-1 block w-full px-3 py-2 bg-gray-50 border ${
-          error ? "border-red-500" : "border-gray-300"
-        } rounded-md text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-colors duration-300`}
-        placeholder={placeholder}
-        disabled={disabled}
+        }}
+        render={({ field, fieldState: { error } }) => (
+          <>
+            <input
+              {...field}
+              type={type}
+              id={name}
+              className={`mt-1 block w-full px-3 py-2 bg-gray-50 border ${
+                error ? "border-red-500" : "border-gray-300"
+              } rounded-md text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-colors duration-300`}
+              placeholder={placeholder}
+              disabled={disabled}
+            />
+            {error && (
+              <motion.p
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="mt-1 text-sm text-red-500"
+              >
+                {error.message}
+              </motion.p>
+            )}
+          </>
+        )}
       />
-      {error && (
-        <motion.p
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="mt-1 text-sm text-red-500"
-        >
-          {error.message}
-        </motion.p>
-      )}
     </motion.div>
   )
 );
-const FacultyLogin = () => {
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-    reset,
-  } = useForm({
+
+const ErrorAlert = React.memo(({ message }) => (
+  <Alert variant="destructive" className="mb-4">
+    <AlertTitle>Error</AlertTitle>
+    <AlertDescription>{message}</AlertDescription>
+  </Alert>
+));
+
+const FacultyLoginForm = React.memo(({ onSubmit, isPending, error }) => {
+  const { control, handleSubmit } = useForm({
     defaultValues: {
       email: "",
       password: "",
@@ -67,36 +75,116 @@ const FacultyLogin = () => {
     mode: "onBlur",
   });
 
+  return (
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+      {error && <ErrorAlert message={error} />}
+      <FormField
+        control={control}
+        name="email"
+        type="email"
+        label="Email"
+        placeholder="Enter your email"
+        disabled={isPending}
+        initialAnimation={{ x: -50, opacity: 0 }}
+      />
+      <FormField
+        control={control}
+        name="password"
+        type="password"
+        label="Password"
+        placeholder="Enter your password"
+        disabled={isPending}
+        initialAnimation={{ x: 50, opacity: 0 }}
+      />
+      <motion.button
+        type="submit"
+        whileHover={{ scale: isPending ? 1 : 1.05 }}
+        whileTap={{ scale: isPending ? 1 : 0.95 }}
+        className={`w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-300 ${
+          isPending ? "opacity-75 cursor-not-allowed" : ""
+        }`}
+        disabled={isPending}
+      >
+        {isPending ? "Signing in..." : "Sign In"}
+      </motion.button>
+    </form>
+  );
+});
+
+const OptimizedFacultyBackground = React.memo(() => {
+  const backgroundElements = useMemo(
+    () =>
+      [...Array(5)].map((_, i) => ({
+        color: ["#FDE68A", "#93C5FD", "#C4B5FD", "#6EE7B7", "#FCA5A5"][i],
+        width: `${Math.random() * 400 + 200}px`,
+        height: `${Math.random() * 400 + 200}px`,
+        top: `${Math.random() * 100}%`,
+        left: `${Math.random() * 100}%`,
+        animationDuration: Math.random() * 10 + 10,
+        movement: Math.random() * 100 - 50,
+      })),
+    []
+  );
+
+  return <FacultyBackground elements={backgroundElements} />;
+});
+
+const FacultyLogin = () => {
+  const navigate = useNavigate();
+  const dispatch = useDispatch();
+  const queryClient = useQueryClient();
+
+  const authToken = useSelector((state) => state.auth.token);
+
+  useEffect(() => {
+    if (authToken || Cookies.get("userCookie")) {
+      navigate("/faculty/dashboard");
+    }
+  }, [authToken, navigate]);
+
   const loginMutation = useMutation({
     mutationFn: async (credentials) => {
-      const response = await fetch("/api/faculty/login", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(credentials),
-      });
+      const response = await fetch(
+        `${process.env.REACT_APP_SERVER_API_URL}/faculty/login`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(credentials),
+        }
+      );
+
+      const data = await response.json();
 
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || "Login failed");
+        throw new Error(data.message || "Login failed");
       }
 
-      return response.json();
+      return data;
     },
     onSuccess: (data) => {
-      console.log("Login successful:", data);
-      reset();
+      Cookies.set("userCookie", data.token);
+      dispatch(
+        setTokenAndRole({
+          token: data.token,
+        })
+      );
+      queryClient.setQueryData(["facultyUser"], data.faculty);
+      navigate(`/faculty/dashboard`);
     },
   });
 
-  const onSubmit = (data) => {
-    loginMutation.mutate(data);
-  };
+  const handleSubmit = useCallback(
+    (data) => {
+      loginMutation.mutate(data);
+    },
+    [loginMutation]
+  );
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-white relative overflow-hidden p-4">
-      <FacultyBackground />
+      <OptimizedFacultyBackground />
       <motion.div
         initial={{ opacity: 0, y: -50 }}
         animate={{ opacity: 1, y: 0 }}
@@ -134,54 +222,25 @@ const FacultyLogin = () => {
         >
           Faculty Login
         </motion.h2>
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-          <FormInput
-            register={register}
-            name="email"
-            type="email"
-            label="Email"
-            error={errors.email}
-            placeholder="Enter your email"
-            disabled={loginMutation.isPending}
-            initialAnimation={{ x: -50, opacity: 0 }}
-          />
-          <FormInput
-            register={register}
-            name="password"
-            type="password"
-            label="Password"
-            error={errors.password}
-            placeholder="Enter your password"
-            disabled={loginMutation.isPending}
-            initialAnimation={{ x: 50, opacity: 0 }}
-          />
-          {loginMutation.error && (
-            <motion.p
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="text-red-500 text-sm"
-            >
-              {loginMutation.error.message}
-            </motion.p>
-          )}
-          <motion.button
-            type="submit"
-            whileHover={{ scale: loginMutation.isPending ? 1 : 1.05 }}
-            whileTap={{ scale: loginMutation.isPending ? 1 : 0.95 }}
-            className={`w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-300 ${
-              loginMutation.isPending ? "opacity-75 cursor-not-allowed" : ""
-            }`}
-            disabled={loginMutation.isPending}
-          >
-            {loginMutation.isPending ? "Signing in..." : "Sign In"}
-          </motion.button>
-        </form>
+        <FacultyLoginForm
+          onSubmit={handleSubmit}
+          isPending={loginMutation.isPending}
+          error={loginMutation.error?.message}
+        />
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.6, duration: 0.5 }}
           className="mt-6 text-center"
         >
+          <p>
+            <a
+              href="/forgot-password?role=faculty"
+              className="text-sm text-blue-600 hover:text-blue-500 transition-colors duration-300"
+            >
+              Forgot Password?
+            </a>
+          </p>
           <p>
             Not a faculty?{" "}
             <a

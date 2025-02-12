@@ -1,7 +1,7 @@
 import React from "react";
 import { motion } from "framer-motion";
 
-const FacultyBackground = () => {
+const FacultyBackground = React.memo(({ elements }) => {
   return (
     <div className="absolute inset-0 overflow-hidden pointer-events-none">
       <svg
@@ -27,26 +27,24 @@ const FacultyBackground = () => {
         </defs>
         <rect width="100%" height="100%" fill="url(#grid)" />
       </svg>
-      {[...Array(5)].map((_, i) => (
+      {elements.map((element, i) => (
         <motion.div
           key={i}
           className="absolute rounded-full mix-blend-multiply filter blur-xl opacity-70"
           style={{
-            background: `radial-gradient(circle, ${
-              ["#FDE68A", "#93C5FD", "#C4B5FD", "#6EE7B7", "#FCA5A5"][i]
-            } 0%, transparent 70%)`,
-            width: `${Math.random() * 400 + 200}px`,
-            height: `${Math.random() * 400 + 200}px`,
-            top: `${Math.random() * 100}%`,
-            left: `${Math.random() * 100}%`,
+            background: `radial-gradient(circle, ${element.color} 0%, transparent 70%)`,
+            width: element.width,
+            height: element.height,
+            top: element.top,
+            left: element.left,
           }}
           animate={{
-            x: [0, Math.random() * 100 - 50],
-            y: [0, Math.random() * 100 - 50],
+            x: [0, element.movement],
+            y: [0, element.movement],
             scale: [1, 1.1, 1],
           }}
           transition={{
-            duration: Math.random() * 10 + 10,
+            duration: element.animationDuration,
             repeat: Infinity,
             repeatType: "reverse",
           }}
@@ -54,6 +52,6 @@ const FacultyBackground = () => {
       ))}
     </div>
   );
-};
+});
 
 export default FacultyBackground;

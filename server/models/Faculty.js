@@ -37,10 +37,22 @@ const facultySchema = new mongoose.Schema(
     },
     registerTimestamp: { type: Date, default: Date.now },
     loginTimestamps: { type: [Date], default: [] },
+    isAccountDeactivated: {
+      type: Boolean,
+      default: false,
+    },
+    lastPasswordChange: {
+      type: Date,
+      default: null,
+    },
+    status: {
+      type: String,
+      enum: ["active", "inactive", "suspended"],
+      default: "active",
+    },
   },
   { timestamps: true, versionKey: false }
 );
-
 
 facultySchema.pre("save", async function (next) {
   const faculty = this;
@@ -60,7 +72,6 @@ facultySchema.methods.addLoginTimestamp = async function () {
   this.loginTimestamps.push(new Date());
   await this.save();
 };
-
 
 facultySchema.index({ university: 1 });
 

@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useParams, useNavigate } from "react-router-dom";
 import { Edit, Trash2, Loader2 } from "lucide-react";
+import { useForm } from "react-hook-form";
 import axios from "axios";
 import Cookies from "js-cookie";
 import LoadingOverlay from "../../Global/LoadingOverlay";
@@ -12,6 +13,7 @@ import UniversityInfo from "./UniversityInfo";
 import Leadership from "./Leadership";
 import StudentSection from "./StudentSection";
 import { toast } from "react-toastify";
+import { getUserRole } from "../../../utils/auth";
 
 const UniversityProfile = () => {
   const { id } = useParams();
@@ -22,10 +24,18 @@ const UniversityProfile = () => {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
+  const userRole = getUserRole();
+  const hasAdminAccess = ["super admin", "admin"].includes(userRole);
+
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors },
+  } = useForm();
 
   const { data, isLoading, isError, error } = useQuery({
     queryKey: ["university", id],
-    refetchOnWindowFocus: false,
     queryFn: async () => {
       const response = await axios.get(
         `${process.env.REACT_APP_SERVER_API_URL}/university/${id}`,
@@ -37,6 +47,13 @@ const UniversityProfile = () => {
       );
       return response.data.data;
     },
+    enabled: true,
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
+    refetchOnMount: false,
+    refetchInterval: 5000,
+    retry: 3,
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
   });
 
   const editMutation = useMutation({
@@ -116,14 +133,30 @@ const UniversityProfile = () => {
     }
   };
 
+  const onEditSubmit = (formData) => {
+    editMutation.mutate(formData);
+  };
+
+  React.useEffect(() => {
+    if (isEditModalOpen && data) {
+      reset({
+        name: data.university.name,
+        email: data.university.email,
+        website: data.university.website,
+        address: data.university.address,
+      });
+    }
+  }, [isEditModalOpen, data, reset]);
+
   if (isLoading) return <LoadingOverlay />;
+
   if (isError) {
     if (error?.response?.status === 401)
       return <ErrorOverlay statusCode={401} />;
     return <ErrorOverlay statusCode={500} />;
   }
 
-  const { university, faculties } = data;
+  const { university, faculties, degreePrograms } = data;
   const headFaculty = faculties.filter((faculty) => faculty.role === "Head");
 
   return (
@@ -138,17 +171,23 @@ const UniversityProfile = () => {
             <Edit className="h-4 w-4" />
             Edit University
           </button>
-          <button
-            onClick={() => setIsDeleteModalOpen(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
-          >
-            <Trash2 className="h-4 w-4" />
-            Delete University
-          </button>
+          {hasAdminAccess && (
+            <button
+              onClick={() => setIsDeleteModalOpen(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
+            >
+              <Trash2 className="h-4 w-4" />
+              Delete University
+            </button>
+          )}
         </div>
       </div>
 
-      <UniversityInfo university={university} universityId={id} />
+      <UniversityInfo
+        university={university}
+        universityId={id}
+        degreePrograms={degreePrograms}
+      />
 
       <Leadership
         headFaculty={headFaculty}
@@ -163,19 +202,7 @@ const UniversityProfile = () => {
           title="Edit University Details"
           onClose={() => setIsEditModalOpen(false)}
         >
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              editMutation.mutate({
-                name: e.target.name.value,
-                email: e.target.email.value,
-                phone: e.target.phone.value,
-                website: e.target.website.value,
-                address: e.target.address.value,
-              });
-            }}
-            className="space-y-4"
-          >
+          <form onSubmit={handleSubmit(onEditSubmit)} className="space-y-4">
             <div>
               <label
                 htmlFor="name"
@@ -184,12 +211,16 @@ const UniversityProfile = () => {
                 Name
               </label>
               <input
+                {...register("name", { required: "Name is required" })}
                 type="text"
                 id="name"
-                name="name"
-                defaultValue={university.name}
                 className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
               />
+              {errors.name && (
+                <p className="mt-1 text-sm text-red-600">
+                  {errors.name.message}
+                </p>
+              )}
             </div>
             <div>
               <label
@@ -199,27 +230,22 @@ const UniversityProfile = () => {
                 Email
               </label>
               <input
+                {...register("email", {
+                  required: "Email is required",
+                  pattern: {
+                    value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
+                    message: "Invalid email address",
+                  },
+                })}
                 type="email"
                 id="email"
-                name="email"
-                defaultValue={university.email}
                 className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
               />
-            </div>
-            <div>
-              <label
-                htmlFor="phone"
-                className="block text-sm font-medium text-gray-700"
-              >
-                Phone
-              </label>
-              <input
-                type="tel"
-                id="phone"
-                name="phone"
-                defaultValue={university.phone}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-              />
+              {errors.email && (
+                <p className="mt-1 text-sm text-red-600">
+                  {errors.email.message}
+                </p>
+              )}
             </div>
             <div>
               <label
@@ -229,12 +255,22 @@ const UniversityProfile = () => {
                 Website
               </label>
               <input
+                {...register("website", {
+                  required: "Website is required",
+                  pattern: {
+                    value: /^https?:\/\/.+\..+/,
+                    message: "Invalid website URL",
+                  },
+                })}
                 type="url"
                 id="website"
-                name="website"
-                defaultValue={university.website}
                 className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
               />
+              {errors.website && (
+                <p className="mt-1 text-sm text-red-600">
+                  {errors.website.message}
+                </p>
+              )}
             </div>
             <div>
               <label
@@ -244,12 +280,16 @@ const UniversityProfile = () => {
                 Address
               </label>
               <textarea
+                {...register("address", { required: "Address is required" })}
                 id="address"
-                name="address"
-                defaultValue={university.address}
                 rows={3}
                 className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
               />
+              {errors.address && (
+                <p className="mt-1 text-sm text-red-600">
+                  {errors.address.message}
+                </p>
+              )}
             </div>
             <div className="flex justify-end gap-4">
               <button
@@ -283,7 +323,7 @@ const UniversityProfile = () => {
         </Modal>
       )}
 
-      {isDeleteModalOpen && (
+      {hasAdminAccess && isDeleteModalOpen && (
         <Modal
           title="Delete University"
           onClose={() => setIsDeleteModalOpen(false)}

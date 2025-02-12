@@ -1,22 +1,17 @@
-import React from "react";
+import React, { useCallback, useEffect, useMemo } from "react";
 import { motion } from "framer-motion";
 import { useMutation } from "@tanstack/react-query";
 import { PiStudentBold } from "react-icons/pi";
-import { useForm } from "react-hook-form";
+import { useForm, Controller } from "react-hook-form";
 import DecorativeBackground from "./DecorativeBackground";
+import { Alert, AlertDescription, AlertTitle } from "../../ui/alert";
+import { useNavigate } from "react-router-dom";
+import { useSelector, useDispatch } from "react-redux";
+import Cookies from "js-cookie";
+import { setTokenAndRole } from "../../../redux/authSlice";
 
-// Memoized form input component for reuse
-const FormInput = React.memo(
-  ({
-    register,
-    name,
-    type,
-    label,
-    error,
-    disabled,
-    placeholder,
-    initialAnimation,
-  }) => (
+const FormField = React.memo(
+  ({ control, name, type, label, disabled, placeholder, initialAnimation }) => (
     <motion.div
       initial={initialAnimation}
       animate={{ x: 0, opacity: 1 }}
@@ -25,77 +20,147 @@ const FormInput = React.memo(
       <label htmlFor={name} className="block text-sm font-medium text-gray-700">
         {label}
       </label>
-      <input
-        {...register(name, {
+      <Controller
+        name={name}
+        control={control}
+        rules={{
           required: `${label} is required`,
-          ...(name === "studentId" && {
+          ...(name === "email" && {
             pattern: {
               value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
               message: "Invalid email address",
             },
           }),
-        })}
-        type={type}
-        id={name}
-        className={`mt-1 block w-full px-3 py-2 bg-gray-50 border ${
-          error ? "border-red-500" : "border-gray-300"
-        } rounded-md text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-colors duration-300`}
-        placeholder={placeholder}
-        disabled={disabled}
+        }}
+        render={({ field, fieldState: { error } }) => (
+          <>
+            <input
+              {...field}
+              type={type}
+              id={name}
+              className={`mt-1 block w-full px-3 py-2 bg-gray-50 border ${
+                error ? "border-red-500" : "border-gray-300"
+              } rounded-md text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-colors duration-300`}
+              placeholder={placeholder}
+              disabled={disabled}
+            />
+            {error && (
+              <motion.p
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="mt-1 text-sm text-red-500"
+              >
+                {error.message}
+              </motion.p>
+            )}
+          </>
+        )}
       />
-      {error && (
-        <motion.p
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="mt-1 text-sm text-red-500"
-        >
-          {error.message}
-        </motion.p>
-      )}
     </motion.div>
   )
 );
 
-const StudentLoginForm = () => {
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-    reset,
-  } = useForm({
+const ErrorAlert = React.memo(({ message }) => (
+  <Alert variant="destructive" className="mb-4">
+    <AlertTitle>Error</AlertTitle>
+    <AlertDescription>{message}</AlertDescription>
+  </Alert>
+));
+
+const StudentLoginForm = React.memo(({ onSubmit, isPending, error }) => {
+  const { control, handleSubmit } = useForm({
     defaultValues: {
-      studentId: "",
+      email: "",
       password: "",
     },
     mode: "onBlur",
   });
 
+  return (
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+      {error && <ErrorAlert message={error} />}
+      <FormField
+        control={control}
+        name="email"
+        type="email"
+        label="Student Email"
+        placeholder="Enter your student email"
+        disabled={isPending}
+        initialAnimation={{ x: -50, opacity: 0 }}
+      />
+      <FormField
+        control={control}
+        name="password"
+        type="password"
+        label="Password"
+        placeholder="Enter your password"
+        disabled={isPending}
+        initialAnimation={{ x: 50, opacity: 0 }}
+      />
+      <motion.button
+        type="submit"
+        whileHover={{ scale: isPending ? 1 : 1.05 }}
+        whileTap={{ scale: isPending ? 1 : 0.95 }}
+        className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 transition-colors duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+        disabled={isPending}
+      >
+        {isPending ? "Logging in..." : "Log In"}
+      </motion.button>
+    </form>
+  );
+});
+
+const StudentLogin = () => {
+  const navigate = useNavigate();
+  const dispatch = useDispatch();
+
+  useEffect(() => {
+    const token = Cookies.get("userCookie");
+    if (token) {
+      navigate("/student/dashboard");
+    }
+  }, [navigate]);
+
   const loginMutation = useMutation({
     mutationFn: async (credentials) => {
-      const response = await fetch("/api/login", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(credentials),
-      });
+      const response = await fetch(
+        `${process.env.REACT_APP_SERVER_API_URL}/student/login`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(credentials),
+        }
+      );
+
+      const data = await response.json();
 
       if (!response.ok) {
-        throw new Error("Login failed");
+        throw new Error(data.message || "Login failed");
       }
 
-      return response.json();
+      return data;
     },
-    onSuccess: (data) => {
-      console.log("Login successful:", data);
-      reset();
+    onSuccess: async (data) => {
+      Cookies.set("userCookie", data.data.token, { expires: 1 });
+      dispatch(
+        setTokenAndRole({
+          token: data.data.token,
+        })
+      );
+      await navigate(data.redirect);
     },
   });
 
-  const onSubmit = (data) => {
-    loginMutation.mutate(data);
-  };
+  const handleSubmit = useCallback(
+    (data) => {
+      loginMutation.mutate(data);
+    },
+    [loginMutation]
+  );
 
+  // Remove console.log to prevent unnecessary rendering logs
   return (
     <div className="min-h-screen flex items-center justify-center bg-white relative overflow-hidden p-4">
       <DecorativeBackground />
@@ -121,52 +186,34 @@ const StudentLoginForm = () => {
         >
           Student Login
         </motion.h2>
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-          <FormInput
-            register={register}
-            name="studentId"
-            type="text"
-            label="Student Email"
-            error={errors.studentId}
-            placeholder="Enter your student Email"
-            disabled={loginMutation.isPending}
-            initialAnimation={{ x: -50, opacity: 0 }}
-          />
-          <FormInput
-            register={register}
-            name="password"
-            type="password"
-            label="Password"
-            error={errors.password}
-            placeholder="Enter your password"
-            disabled={loginMutation.isPending}
-            initialAnimation={{ x: 50, opacity: 0 }}
-          />
-          {loginMutation.error && (
-            <motion.p
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="text-red-500 text-sm"
-            >
-              {loginMutation.error.message}
-            </motion.p>
-          )}
-          <motion.button
-            type="submit"
-            whileHover={{ scale: loginMutation.isPending ? 1 : 1.05 }}
-            whileTap={{ scale: loginMutation.isPending ? 1 : 0.95 }}
-            className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 transition-colors duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
-            disabled={loginMutation.isPending}
-          >
-            {loginMutation.isPending ? "Logging in..." : "Log In"}
-          </motion.button>
-        </form>
+        <StudentLoginForm
+          onSubmit={handleSubmit}
+          isPending={loginMutation.isPending}
+          error={loginMutation.error?.message}
+        />
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.6, duration: 0.5 }}
           className="mt-6 text-center"
         >
+          <p>
+            <a
+              href="/forgot-password?role=student"
+              className="text-sm text-blue-600 hover:text-blue-500 transition-colors duration-300"
+            >
+              Forgot Password?
+            </a>
+          </p>
+          <p>
+            Not a registered user?{" "}
+            <a
+              href="/student/create-profile"
+              className="text-sm text-blue-600 hover:text-blue-500 transition-colors duration-300"
+            >
+              Create account
+            </a>
+          </p>
           <p>
             Not a student?{" "}
             <a
@@ -182,4 +229,4 @@ const StudentLoginForm = () => {
   );
 };
 
-export default React.memo(StudentLoginForm);
+export default React.memo(StudentLogin);
