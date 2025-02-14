@@ -24,4 +24,10 @@ router.get(
   studentController.getDegreePrograms
 );
 
+router.post(
+  "/send-notification",
+  verifyTokenAndRole(),
+  studentController.sendNotification
+);
+
 module.exports = router;

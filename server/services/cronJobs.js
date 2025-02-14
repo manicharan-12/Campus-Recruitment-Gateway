@@ -23,8 +23,8 @@ exports.scheduleProfileUpdateReminders = () => {
           student.personal.firstName
         );
         await sendProfileUpdateReminder(
-          student.personal.firstName,
-          student.personal.whatsappNumber
+          student.personal.whatsappNumber,
+          student.personal.firstName
         );
       }
     } catch (error) {

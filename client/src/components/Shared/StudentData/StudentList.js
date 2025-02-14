@@ -252,6 +252,7 @@ const StudentList = () => {
   const [selectedUniversity, setSelectedUniversity] = useState("");
   const [selectedDegree, setSelectedDegree] = useState("");
   const [selectedBranch, setSelectedBranch] = useState("");
+  const [selectedSection, setSelectedSection] = useState("");
   const [selectedYear, setSelectedYear] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [sortConfig, setSortConfig] = useState({
@@ -264,10 +265,11 @@ const StudentList = () => {
   const [updatedPlacements, setUpdatedPlacements] = useState(new Map());
 
   const queryClient = useQueryClient();
-  const { control } = useForm();
+  const { control, reset } = useForm();
   const role = getUserRole();
   const isAdminRole = role === "admin" || role === "super admin";
   const isPlacementRole = role === "head" || role === "coordinator";
+  console.log(isPlacementRole);
 
   const { data, isLoading, isError, error } = useQuery({
     queryKey: ["students", "data"],
@@ -282,22 +284,6 @@ const StudentList = () => {
       );
       return response.data;
     },
-  });
-
-  const placementDetailsQuery = useQuery({
-    queryKey: ["placement", selectedStudent?.id],
-    queryFn: async () => {
-      const response = await axios.get(
-        `${process.env.REACT_APP_SERVER_API_URL}/students/placement/${selectedStudent.id}`,
-        {
-          headers: {
-            Authorization: `Bearer ${jwtToken}`,
-          },
-        }
-      );
-      return response.data;
-    },
-    enabled: !!selectedStudent?.id, // Only run query if selectedStudent exists
   });
 
   const updatePlacementMutation = useMutation({
@@ -410,7 +396,6 @@ const StudentList = () => {
         (student) => student.university === selectedUniversity
       );
     }
-
     if (selectedDegree) {
       filtered = filtered.filter(
         (student) => student.degree === selectedDegree
@@ -419,6 +404,16 @@ const StudentList = () => {
     if (selectedBranch) {
       filtered = filtered.filter(
         (student) => student.branch === selectedBranch
+      );
+    }
+    if (selectedSection) {
+      filtered = filtered.filter(
+        (student) => student.section === selectedSection
+      );
+    }
+    if (selectedSection) {
+      filtered = filtered.filter(
+        (student) => student.section === selectedSection
       );
     }
     if (selectedYear) {
@@ -434,7 +429,6 @@ const StudentList = () => {
           student.email.toLowerCase().includes(query)
       );
     }
-
     if (selectedPlacementStatus) {
       filtered = filtered.filter((student) => {
         if (updatedPlacements.has(student.id)) {
@@ -443,7 +437,6 @@ const StudentList = () => {
             ? updatedStatus
             : !updatedStatus;
         }
-
         return selectedPlacementStatus === "placed"
           ? student.isPlaced
           : !student.isPlaced;
@@ -471,6 +464,7 @@ const StudentList = () => {
     selectedUniversity,
     selectedDegree,
     selectedBranch,
+    selectedSection,
     selectedYear,
     searchQuery,
     sortConfig,
@@ -504,18 +498,37 @@ const StudentList = () => {
     [availablePrograms]
   );
 
-  const branchOptions = useMemo(
-    () =>
-      selectedDegree
-        ? availablePrograms
-            .find((prog) => prog.degree === selectedDegree)
-            ?.branches.map((branch) => ({
-              value: branch,
-              label: branch,
-            })) || []
-        : [],
-    [selectedDegree, availablePrograms]
-  );
+  const branchOptions = useMemo(() => {
+    if (!selectedDegree || !availablePrograms) return [];
+
+    const selectedProgram = availablePrograms.find(
+      (prog) => prog.degree === selectedDegree
+    );
+    return (
+      selectedProgram?.branches.map((branch) => ({
+        value: branch.name,
+        label: branch.name,
+      })) || []
+    );
+  }, [selectedDegree, availablePrograms]);
+
+  const sectionOptions = useMemo(() => {
+    if (!selectedDegree || !selectedBranch || !availablePrograms) return [];
+
+    const selectedProgram = availablePrograms.find(
+      (prog) => prog.degree === selectedDegree
+    );
+    const selectedBranchData = selectedProgram?.branches.find(
+      (b) => b.name === selectedBranch
+    );
+
+    return (
+      selectedBranchData?.sections?.map((section) => ({
+        value: section,
+        label: section,
+      })) || []
+    );
+  }, [selectedDegree, selectedBranch, availablePrograms]);
 
   const yearOptions = useMemo(
     () =>
@@ -533,6 +546,7 @@ const StudentList = () => {
       selectedUniversity !== "" ||
       selectedDegree !== "" ||
       selectedBranch !== "" ||
+      selectedSection !== "" ||
       selectedYear !== "" ||
       searchQuery !== "" ||
       selectedPlacementStatus !== "" ||
@@ -543,6 +557,7 @@ const StudentList = () => {
     selectedUniversity,
     selectedDegree,
     selectedBranch,
+    selectedSection,
     selectedYear,
     searchQuery,
     selectedPlacementStatus,
@@ -550,17 +565,26 @@ const StudentList = () => {
     sortConfig.direction,
   ]);
 
-  // Reset filters function
   const resetFilters = () => {
     setSelectedUniversity("");
     setSelectedDegree("");
     setSelectedBranch("");
+    setSelectedSection("");
     setSelectedYear("");
     setSearchQuery("");
     setSelectedPlacementStatus("");
     setSortConfig({
       key: "name",
       direction: "asc",
+    });
+
+    reset({
+      university: null,
+      degree: null,
+      branch: null,
+      section: null,
+      year: null,
+      placementStatus: null,
     });
   };
 
@@ -634,12 +658,13 @@ const StudentList = () => {
                       { value: "placed", label: "Placed" },
                       { value: "not_placed", label: "Not Placed" },
                     ]}
-                    value={field.value}
+                    value={field.value || null}
                     onChange={(option) => {
                       field.onChange(option);
-                      setSelectedPlacementStatus(option.value);
+                      setSelectedPlacementStatus(option?.value || "");
                     }}
                     placeholder="Select Status"
+                    isClearable={true}
                   />
                 )}
               />
@@ -672,6 +697,30 @@ const StudentList = () => {
           )}
 
           {/* Degree Filter */}
+          {isAdminRole && (
+            <div className="w-full">
+              <Controller
+                name="university"
+                control={control}
+                render={({ field }) => (
+                  <CustomSelect
+                    options={universityOptions}
+                    value={field.value || null}
+                    onChange={(option) => {
+                      field.onChange(option);
+                      setSelectedUniversity(option?.value || "");
+                      setSelectedDegree("");
+                      setSelectedBranch("");
+                    }}
+                    placeholder="Select University"
+                    isClearable={true}
+                  />
+                )}
+              />
+            </div>
+          )}
+
+          {/* Branch Filter */}
           <div className="w-full">
             <Controller
               name="degree"
@@ -679,15 +728,14 @@ const StudentList = () => {
               render={({ field }) => (
                 <CustomSelect
                   options={degreeOptions}
-                  value={degreeOptions.find(
-                    (option) => option.value === selectedDegree
-                  )}
+                  value={field.value || null}
                   onChange={(option) => {
                     field.onChange(option);
-                    setSelectedDegree(option.value);
+                    setSelectedDegree(option?.value || "");
                     setSelectedBranch("");
                   }}
                   placeholder="Select Degree"
+                  isClearable={true}
                 />
               )}
             />
@@ -701,15 +749,36 @@ const StudentList = () => {
               render={({ field }) => (
                 <CustomSelect
                   options={branchOptions}
-                  value={branchOptions.find(
-                    (option) => option.value === selectedBranch
-                  )}
+                  value={field.value || null}
                   onChange={(option) => {
                     field.onChange(option);
-                    setSelectedBranch(option.value);
+                    setSelectedBranch(option?.value || "");
+                    setSelectedSection("");
                   }}
                   placeholder="Select Branch"
                   isDisabled={!selectedDegree}
+                  isClearable={true}
+                />
+              )}
+            />
+          </div>
+
+          {/* Section Filter */}
+          <div className="w-full">
+            <Controller
+              name="section"
+              control={control}
+              render={({ field }) => (
+                <CustomSelect
+                  options={sectionOptions}
+                  value={field.value || null}
+                  onChange={(option) => {
+                    field.onChange(option);
+                    setSelectedSection(option?.value || "");
+                  }}
+                  placeholder="Select Section"
+                  isDisabled={!selectedBranch}
+                  isClearable={true}
                 />
               )}
             />
@@ -723,14 +792,13 @@ const StudentList = () => {
               render={({ field }) => (
                 <CustomSelect
                   options={yearOptions}
-                  value={yearOptions.find(
-                    (option) => option.value === selectedYear
-                  )}
+                  value={field.value || null}
                   onChange={(option) => {
                     field.onChange(option);
-                    setSelectedYear(option.value);
+                    setSelectedYear(option?.value || "");
                   }}
                   placeholder="Select Year"
+                  isClearable={true}
                 />
               )}
             />
@@ -857,13 +925,17 @@ const StudentList = () => {
                 <span className="font-medium">Branch:</span> {student.branch}
               </p>
               <p className="text-gray-600">
+                <span className="font-medium">Section:</span>{" "}
+                {student.section || "N/A"}
+              </p>
+              <p className="text-gray-600">
                 <span className="font-medium">Graduation Year:</span>{" "}
                 {student.graduationYear}
               </p>
 
               {/* Placement Status - Only for placement roles */}
 
-              {isPlacementRole && student.isPlaced && (
+              {isPlacementRole && (
                 <div className="mt-4">
                   <h4 className="font-medium mb-2">Placement Offers</h4>
                   <div className="space-y-2">

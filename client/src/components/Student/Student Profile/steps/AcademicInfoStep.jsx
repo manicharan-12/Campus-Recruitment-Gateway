@@ -18,6 +18,7 @@ const AcademicInfoStep = ({ control, errors, currentValues, watch }) => {
   });
 
   const selectedDegree = watch("academic.degreeProgram");
+  const selectedBranch = watch("academic.branch");
 
   const getYearPickerProps = (maxYear = new Date().getFullYear()) => ({
     showYearPicker: true,
@@ -61,10 +62,28 @@ const AcademicInfoStep = ({ control, errors, currentValues, watch }) => {
     );
 
     return (selectedProgram?.branches || []).map((branch) => ({
-      value: branch,
-      label: branch,
+      value: branch.name,
+      label: branch.name,
     }));
   }, [selectedDegree, currentValues.university.degreePrograms]);
+
+  const sectionOptions = useMemo(() => {
+    if (!selectedDegree || !selectedBranch) return [];
+
+    const selectedProgram = currentValues.university.degreePrograms.find(
+      (program) =>
+        program.programName === (selectedDegree?.value || selectedDegree)
+    );
+
+    const selectedBranchData = selectedProgram?.branches.find(
+      (branch) => branch.name === (selectedBranch?.value || selectedBranch)
+    );
+
+    return (selectedBranchData?.sections || []).map((section) => ({
+      value: section,
+      label: section,
+    }));
+  }, [selectedDegree, selectedBranch, currentValues.university.degreePrograms]);
 
   return (
     <motion.div
@@ -120,7 +139,7 @@ const AcademicInfoStep = ({ control, errors, currentValues, watch }) => {
         <SelectInput
           control={control}
           name="academic.degreeProgram"
-          defaultValue={currentValues?.degreeProgram} // Pass the currentValue directly
+          defaultValue={currentValues?.degreeProgram}
           options={degreeOptions}
           rules={{ required: "Degree program is required" }}
           placeholder="Select degree program"
@@ -132,10 +151,23 @@ const AcademicInfoStep = ({ control, errors, currentValues, watch }) => {
           <SelectInput
             control={control}
             name="academic.branch"
-            defaultValue={currentValues?.branch} // Pass the currentValue directly
+            defaultValue={currentValues?.branch}
             options={branchOptions}
             rules={{ required: "Branch is required" }}
             placeholder="Select branch"
+          />
+        </FormField>
+      )}
+
+      {selectedBranch && (
+        <FormField label="Section" required error={errors?.academic?.section}>
+          <SelectInput
+            control={control}
+            name="academic.section"
+            defaultValue={currentValues?.section}
+            options={sectionOptions}
+            rules={{ required: "Section is required" }}
+            placeholder="Select section"
           />
         </FormField>
       )}

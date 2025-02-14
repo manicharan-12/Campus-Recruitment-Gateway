@@ -1,6 +1,7 @@
 const Faculty = require("../../models/Faculty");
 const Student = require("../../models/Student");
 const University = require("../../models/University");
+const { sendBulkNotification } = require("../../services/emailService");
 
 exports.getFilteredData = async (req, res) => {
   try {
@@ -109,7 +110,7 @@ exports.getFilteredData = async (req, res) => {
     }
 
     if (req.query.isPlaced !== undefined) {
-      query["auth.isPlaced"] = req.query.isPlaced === "true";
+      query["placement.isPlaced"] = req.query.isPlaced === "true";
     }
 
     // Select fields based on requested columns
@@ -171,6 +172,24 @@ exports.getDegreePrograms = async (req, res) => {
     });
   } catch (error) {
     console.error("Error in getDegreePrograms:", error);
+    res.status(500).json({
+      status: "error",
+      message: "Internal Server Error",
+      error: error.message,
+    });
+  }
+};
+
+exports.sendNotification = async (req, res) => {
+  try {
+    const { emails, subject, content } = req.body;
+    await sendBulkNotification(emails, subject, content);
+    res.status(200).json({
+      status: "success",
+      message: "Notification sent successfully",
+    });
+  } catch (error) {
+    console.error("Error in sendNotification:", error);
     res.status(500).json({
       status: "error",
       message: "Internal Server Error",

@@ -223,6 +223,7 @@ const StudentProfileForm = () => {
               profileData.data.academic.university.name,
             degreeProgram: data.academic.degreeProgram,
             branch: data.academic.branch,
+            section: data.academic.section,
             cgpa: parseFloat(data.academic.cgpa),
             backlogs: parseInt(data.academic.backlogs),
             graduationYear: parseInt(data.academic.graduationYear),

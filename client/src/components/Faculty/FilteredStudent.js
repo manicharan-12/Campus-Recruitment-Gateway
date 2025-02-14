@@ -16,6 +16,8 @@ import { FaSort, FaSortUp, FaSortDown } from "react-icons/fa";
 import Select from "react-select";
 import Cookies from "js-cookie";
 import * as XLSX from "xlsx";
+import CustomSelect from "../Global/CustomSelect";
+import NotificationButton from "../Global/NotificationButton";
 
 const defaultColumns = [
   { key: "fullName", label: "Full Name", path: "personal" },
@@ -77,7 +79,6 @@ const availableColumns = [
   },
   { key: "linkedin", label: "LinkedIn", path: "social.linkedin" },
   { key: "github", label: "GitHub", path: "social.github" },
-  { key: "isPlaced", label: "Is Placed", path: "auth.isPlaced" },
 ];
 
 const allColumns = [...defaultColumns, ...availableColumns];
@@ -140,6 +141,16 @@ const FilteredStudents = () => {
   const [tempSelectedDegree, setTempSelectedDegree] = useState(null);
   const [branches, setBranches] = useState([]);
   const [localData, setLocalData] = useState([]);
+  const [placementStatus, setPlacementStatus] = useState({
+    value: "all",
+    label: "All Placement Status",
+  });
+
+  const placementOptions = [
+    { value: "all", label: "All Placement Status" },
+    { value: "placed", label: "Placed" },
+    { value: "not_placed", label: "Not Placed" },
+  ];
 
   const jwtToken = Cookies.get("userCookie");
 
@@ -197,7 +208,13 @@ const FilteredStudents = () => {
   }, [selectedDegree, degreePrograms]);
 
   const { data, isLoading } = useQuery({
-    queryKey: ["students", currentPage, filters, sortConfig],
+    queryKey: [
+      "students",
+      currentPage,
+      filters,
+      sortConfig,
+      placementStatus.value,
+    ],
     queryFn: async () => {
       const params = new URLSearchParams({
         page: currentPage,
@@ -207,6 +224,9 @@ const FilteredStudents = () => {
           sortOrder: sortConfig.direction,
         }),
         ...filters,
+        ...(placementStatus.value !== "all" && {
+          isPlaced: placementStatus.value === "placed",
+        }),
       });
 
       const response = await axios.get(
@@ -436,28 +456,6 @@ const FilteredStudents = () => {
             />
           </div>
         );
-
-      case "isPlaced":
-        return (
-          <div key={column.key} className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              id="isPlaced"
-              className="rounded border-gray-300"
-              checked={tempFilters.isPlaced || false}
-              onChange={(e) =>
-                setTempFilters((prev) => ({
-                  ...prev,
-                  isPlaced: e.target.checked,
-                }))
-              }
-            />
-            <label htmlFor="isPlaced" className="text-sm font-medium">
-              Is Placed
-            </label>
-          </div>
-        );
-
       default:
         return null;
     }
@@ -471,6 +469,9 @@ const FilteredStudents = () => {
         ...(sortConfig.key && {
           sortBy: sortConfig.key,
           sortOrder: sortConfig.direction,
+        }),
+        ...(placementStatus.value !== "all" && {
+          isPlaced: placementStatus.value === "placed",
         }),
       });
 
@@ -570,6 +571,17 @@ const FilteredStudents = () => {
           >
             <Plus className="w-4 h-4" /> Add Column
           </motion.button>
+          <div className="w-48">
+            <CustomSelect
+              options={placementOptions}
+              value={placementStatus}
+              onChange={(selectedOption) => {
+                setPlacementStatus(selectedOption);
+                setCurrentPage(1);
+              }}
+              placeholder="Select placement status"
+            />
+          </div>
           <motion.button
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
@@ -579,6 +591,12 @@ const FilteredStudents = () => {
             <Download className="w-4 h-4" /> Download Excel
           </motion.button>
         </div>
+        <NotificationButton
+          filteredEmails={localData.map(
+            (student) => student.personal.collegeEmail
+          )}
+          jwtToken={jwtToken}
+        />
         <motion.button
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}

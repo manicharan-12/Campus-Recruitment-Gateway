@@ -76,6 +76,7 @@ const studentSchema = new mongoose.Schema(
       collegeName: String,
       degreeProgram: String,
       branch: String,
+      section: { type: String },
       cgpa: Number,
       backlogs: { type: Number, default: 0 },
       graduationYear: { type: Number },

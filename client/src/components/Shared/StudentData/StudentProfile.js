@@ -409,7 +409,7 @@ const StudentProfile = () => {
               {student.academic.rollNumber}
             </p>
             <p className="text-xl text-gray-600 mb-4">
-              {student.academic.degreeProgram} • {student.academic.branch}
+              {student.academic.degreeProgram} • {student.academic.branch} • {student.academic.section}
             </p>
             <div className="flex justify-center md:justify-start space-x-4">
               {student.social.linkedin && (

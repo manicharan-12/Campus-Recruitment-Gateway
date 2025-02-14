@@ -321,7 +321,7 @@ exports.getAllStudents = async (req, res) => {
         select: "name degreePrograms",
       })
       .select(
-        "_id personal.firstName personal.lastName academic.university academic.degreeProgram academic.branch academic.rollNumber personal.collegeEmail academic.graduationYear placement" // Changed this line to include all placement data
+        "_id personal.firstName personal.lastName academic.university academic.degreeProgram academic.branch academic.section academic.rollNumber personal.collegeEmail academic.graduationYear placement"
       );
 
     const mapStudent = (student) => ({
@@ -329,6 +329,7 @@ exports.getAllStudents = async (req, res) => {
       name: `${student.personal.firstName} ${student.personal.lastName}`,
       degree: student.academic.degreeProgram,
       branch: student.academic.branch,
+      section: student.academic.section,
       rollNumber: student.academic.rollNumber,
       email: student.personal.collegeEmail,
       graduationYear: student.academic.graduationYear,
@@ -352,7 +353,6 @@ exports.getAllStudents = async (req, res) => {
         });
       }
 
-      // Filter students by faculty's university
       students = await baseQuery
         .where("academic.university")
         .equals(faculty.university._id)

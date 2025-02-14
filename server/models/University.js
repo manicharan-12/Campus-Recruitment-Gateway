@@ -62,7 +62,14 @@ const universitySchema = new mongoose.Schema(
         },
         branches: [
           {
-            type: String,
+            name: {
+              type: String,
+            },
+            sections: [
+              {
+                type: String,
+              },
+            ],
           },
         ],
       },

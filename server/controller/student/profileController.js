@@ -6,10 +6,7 @@ exports.getStudentProfile = async (req, res) => {
   try {
     const student = await Student.findById(req.student._id)
       .select("-auth.password -auth.loginHistory")
-      .populate(
-        "academic.university",
-        "name location degreePrograms branches departments"
-      );
+      .populate("academic.university", "name location degreePrograms");
 
     if (!student) {
       return res.status(404).json({
@@ -120,7 +117,6 @@ exports.updateStudentProfile = async (req, res) => {
         S3_PATHS.STUDENT.DOCUMENTS
       );
     }
-
 
     Object.keys(profileData).forEach((section) => {
       if (section !== "documents") {

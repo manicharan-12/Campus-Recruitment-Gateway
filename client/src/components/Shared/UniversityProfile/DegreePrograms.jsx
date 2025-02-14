@@ -20,29 +20,51 @@ const DegreePrograms = ({ universityId, programs, onUpdatePrograms }) => {
   const [isAddingProgram, setIsAddingProgram] = useState(false);
   const [isEditingProgram, setIsEditingProgram] = useState(null);
   const [expandedProgram, setExpandedProgram] = useState(null);
+  const [expandedBranch, setExpandedBranch] = useState(null);
   const jwtToken = Cookies.get("userCookie");
   const userRole = getUserRole();
-
   const queryClient = useQueryClient();
 
-  const programForm = useForm({
+  const {
+    control,
+    register,
+    handleSubmit,
+    reset,
+    setValue,
+    getValues,
+    formState,
+  } = useForm({
     defaultValues: {
       name: "",
       branches: [],
     },
   });
 
-  // Reset form when adding or editing changes
+  const { errors } = formState;
+
+  const {
+    fields: branchFields,
+    append: appendBranch,
+    remove: removeBranch,
+  } = useFieldArray({
+    control,
+    name: "branches",
+  });
+
+  const branchesArray = useFieldArray({
+    control,
+    name: "branches",
+  });
+
   useEffect(() => {
     if (isAddingProgram) {
-      programForm.reset({
+      reset({
         name: "",
         branches: [],
       });
     }
-  }, [isAddingProgram, programForm.reset]);
+  }, [isAddingProgram, reset]);
 
-  // Create Program Mutation
   const createProgramMutation = useMutation({
     mutationFn: async (programData) => {
       const response = await axios.post(
@@ -55,7 +77,6 @@ const DegreePrograms = ({ universityId, programs, onUpdatePrograms }) => {
       return response.data;
     },
     onSuccess: (newProgram) => {
-      // Directly update the local state with the server response
       onUpdatePrograms((prev) => [
         ...prev,
         {
@@ -64,12 +85,9 @@ const DegreePrograms = ({ universityId, programs, onUpdatePrograms }) => {
           branches: newProgram.branches || [],
         },
       ]);
-
-      // Invalidate and refetch university data to ensure consistency
       queryClient.invalidateQueries(["university", universityId]);
-
       setIsAddingProgram(false);
-      programForm.reset();
+      reset(); // Changed from programForm.reset()
       toast.success("Program added successfully");
     },
     onError: (error) => {
@@ -77,7 +95,6 @@ const DegreePrograms = ({ universityId, programs, onUpdatePrograms }) => {
     },
   });
 
-  // Update Program Mutation
   const updateProgramMutation = useMutation({
     mutationFn: async ({ programId, programData }) => {
       const response = await axios.put(
@@ -90,7 +107,6 @@ const DegreePrograms = ({ universityId, programs, onUpdatePrograms }) => {
       return response.data;
     },
     onSuccess: (updatedProgram) => {
-      // Directly update the local state with the server response
       onUpdatePrograms((prev) =>
         prev.map((p) =>
           p._id === updatedProgram._id
@@ -102,12 +118,9 @@ const DegreePrograms = ({ universityId, programs, onUpdatePrograms }) => {
             : p
         )
       );
-
-      // Invalidate and refetch university data to ensure consistency
       queryClient.invalidateQueries(["university", universityId]);
-
       setIsEditingProgram(null);
-      programForm.reset();
+      reset(); // Changed from programForm.reset()
       toast.success("Program updated successfully");
     },
     onError: (error) => {
@@ -115,7 +128,6 @@ const DegreePrograms = ({ universityId, programs, onUpdatePrograms }) => {
     },
   });
 
-  // Delete Program Mutation
   const deleteProgramMutation = useMutation({
     mutationFn: async (programId) => {
       await axios.delete(
@@ -127,12 +139,8 @@ const DegreePrograms = ({ universityId, programs, onUpdatePrograms }) => {
       return programId;
     },
     onSuccess: (programId) => {
-      // Directly update the local state
       onUpdatePrograms((prev) => prev.filter((p) => p._id !== programId));
-
-      // Invalidate and refetch university data to ensure consistency
       queryClient.invalidateQueries(["university", universityId]);
-
       toast.success("Program deleted successfully");
     },
     onError: (error) => {
@@ -140,40 +148,128 @@ const DegreePrograms = ({ universityId, programs, onUpdatePrograms }) => {
     },
   });
 
-  const { fields, append, remove } = useFieldArray({
-    control: programForm.control,
-    name: "branches",
-  });
-
   const handleCreateProgram = (data) => {
+    const formattedBranches = data.branches
+      .map((branch) => ({
+        name: branch.value,
+        sections: branch.sections?.map((section) => section.value) || [],
+      }))
+      .filter((branch) => branch.name);
+
     createProgramMutation.mutate({
       name: data.name,
-      branches: data.branches.map((b) => b.value).filter(Boolean),
+      branches: formattedBranches,
     });
   };
 
   const handleUpdateProgram = (data) => {
+    const formattedBranches = data.branches
+      .map((branch) => ({
+        name: branch.value,
+        sections: branch.sections?.map((section) => section.value) || [],
+      }))
+      .filter((branch) => branch.name);
+
     updateProgramMutation.mutate({
       programId: isEditingProgram._id,
       programData: {
         name: data.name,
-        branches: data.branches.map((b) => b.value).filter(Boolean),
+        branches: formattedBranches,
       },
     });
   };
 
   const startEditProgram = (program) => {
     setIsEditingProgram(program);
-    programForm.reset({
+    const formattedBranches = program.branches.map((branch) => ({
+      value: branch.name,
+      sections: branch.sections?.map((section) => ({ value: section })) || [],
+    }));
+
+    reset({
+      // Changed from programForm.reset()
       name: program.programName,
-      branches: (program.branches || []).map((b) => ({ value: b })),
+      branches: formattedBranches,
     });
   };
 
   const closeModal = () => {
     setIsAddingProgram(false);
     setIsEditingProgram(null);
-    programForm.reset();
+    reset(); // Changed from programForm.reset()
+  };
+
+  const addSectionToBranch = (branchIndex) => {
+    const currentBranch = getValues(`branches.${branchIndex}`);
+    const sections = currentBranch.sections || [];
+
+    // Create a new sections array with the new section
+    const updatedSections = [...sections, { value: "" }];
+
+    // Use setValue with the shouldDirty option to trigger re-render
+    setValue(`branches.${branchIndex}.sections`, updatedSections, {
+      shouldDirty: true,
+      shouldTouch: true,
+    });
+
+    // Force re-render of the specific branch
+    branchesArray.update(branchIndex, {
+      ...currentBranch,
+      sections: updatedSections,
+    });
+  };
+
+  const removeSectionFromBranch = (branchIndex, sectionIndex) => {
+    const currentBranch = getValues(`branches.${branchIndex}`);
+    const sections = [...(currentBranch.sections || [])];
+    sections.splice(sectionIndex, 1);
+
+    // Use setValue with the shouldDirty option to trigger re-render
+    setValue(`branches.${branchIndex}.sections`, sections, {
+      shouldDirty: true,
+      shouldTouch: true,
+    });
+
+    // Force re-render of the specific branch
+    branchesArray.update(branchIndex, {
+      ...currentBranch,
+      sections: sections,
+    });
+  };
+
+  const renderBranchSections = (branchIndex) => {
+    const branch = getValues(`branches.${branchIndex}`);
+    const sections = branch.sections || [];
+
+    return (
+      <div className="ml-4 mt-2 space-y-2">
+        {sections.map((section, sectionIndex) => (
+          <div key={sectionIndex} className="flex items-center gap-2">
+            <input
+              {...register(
+                `branches.${branchIndex}.sections.${sectionIndex}.value`
+              )}
+              className="flex-1 p-2 border border-gray-300 rounded-md text-sm"
+              placeholder="Enter section name"
+            />
+            <button
+              type="button"
+              onClick={() => removeSectionFromBranch(branchIndex, sectionIndex)}
+              className="text-red-500 hover:text-red-700"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        ))}
+        <button
+          type="button"
+          onClick={() => addSectionToBranch(branchIndex)}
+          className="flex items-center gap-1 text-indigo-600 hover:text-indigo-800 text-sm"
+        >
+          <Plus className="h-3 w-3" /> Add Section
+        </button>
+      </div>
+    );
   };
 
   const renderProgramForm = (isEditing = false) => (
@@ -186,7 +282,7 @@ const DegreePrograms = ({ universityId, programs, onUpdatePrograms }) => {
       <motion.div
         initial={{ scale: 0.9 }}
         animate={{ scale: 1 }}
-        className="bg-white rounded-xl shadow-xl max-w-md w-full p-6 space-y-4"
+        className="bg-white rounded-xl shadow-xl max-w-md w-full p-6 space-y-4 max-h-[80vh] overflow-y-auto"
       >
         <div className="flex justify-between items-center mb-4">
           <h3 className="text-lg font-semibold">
@@ -201,7 +297,7 @@ const DegreePrograms = ({ universityId, programs, onUpdatePrograms }) => {
         </div>
 
         <form
-          onSubmit={programForm.handleSubmit(
+          onSubmit={handleSubmit(
             isEditing ? handleUpdateProgram : handleCreateProgram
           )}
           className="space-y-4"
@@ -211,45 +307,49 @@ const DegreePrograms = ({ universityId, programs, onUpdatePrograms }) => {
               Program Name
             </label>
             <input
-              {...programForm.register("name", {
+              {...register("name", {
                 required: "Program name is required",
               })}
               className="w-full p-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
               placeholder="Enter program name"
             />
-            {programForm.formState.errors.name && (
-              <p className="text-red-500 text-sm mt-1">
-                {programForm.formState.errors.name.message}
-              </p>
+            {errors.name && (
+              <p className="text-red-500 text-sm mt-1">{errors.name.message}</p>
             )}
           </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Add Branches (Optional)
+              Add Branches and Sections
             </label>
-            <div className="space-y-2">
-              {fields.map((field, index) => (
-                <div key={field.id} className="flex items-center gap-2">
-                  <input
-                    {...programForm.register(`branches.${index}.value`)}
-                    className="flex-1 p-2 border border-gray-300 rounded-md"
-                    placeholder="Enter branch name"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => remove(index)}
-                    className="text-red-500 hover:text-red-700"
-                  >
-                    <X className="h-5 w-5" />
-                  </button>
+            <div className="space-y-4">
+              {branchFields.map((field, branchIndex) => (
+                <div
+                  key={field.id}
+                  className="space-y-2 border-l-2 border-indigo-200 pl-3"
+                >
+                  <div className="flex items-center gap-2">
+                    <input
+                      {...register(`branches.${branchIndex}.value`)}
+                      className="flex-1 p-2 border border-gray-300 rounded-md"
+                      placeholder="Enter branch name"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removeBranch(branchIndex)}
+                      className="text-red-500 hover:text-red-700"
+                    >
+                      <X className="h-5 w-5" />
+                    </button>
+                  </div>
+                  {renderBranchSections(branchIndex)}
                 </div>
               ))}
             </div>
             <button
               type="button"
-              onClick={() => append({ value: "" })}
-              className="mt-2 flex items-center gap-2 text-indigo-600 hover:text-indigo-800"
+              onClick={() => appendBranch({ value: "", sections: [] })}
+              className="mt-4 flex items-center gap-2 text-indigo-600 hover:text-indigo-800"
             >
               <Plus className="h-4 w-4" /> Add Branch
             </button>
@@ -301,6 +401,56 @@ const DegreePrograms = ({ universityId, programs, onUpdatePrograms }) => {
           </div>
         </form>
       </motion.div>
+    </motion.div>
+  );
+
+  const renderBranchDetails = (branch, branchIndex) => (
+    <motion.div
+      initial={{ opacity: 0, height: 0 }}
+      animate={{ opacity: 1, height: "auto" }}
+      exit={{ opacity: 0, height: 0 }}
+      className="mt-2 pl-4 border-l-2 border-indigo-100"
+    >
+      <div className="flex items-center justify-between">
+        <span className="text-sm font-medium text-gray-600">{branch.name}</span>
+        {branch.sections?.length > 0 && (
+          <button
+            onClick={() =>
+              setExpandedBranch(
+                expandedBranch === branchIndex ? null : branchIndex
+              )
+            }
+            className="text-gray-500 hover:text-gray-700"
+          >
+            {expandedBranch === branchIndex ? (
+              <ChevronUp className="h-4 w-4" />
+            ) : (
+              <ChevronDown className="h-4 w-4" />
+            )}
+          </button>
+        )}
+      </div>
+      <AnimatePresence>
+        {expandedBranch === branchIndex && branch.sections?.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            className="mt-2 pl-4"
+          >
+            <div className="flex flex-wrap gap-2">
+              {branch.sections.map((section, sectionIndex) => (
+                <span
+                  key={sectionIndex}
+                  className="px-2 py-1 bg-indigo-50 text-indigo-700 rounded-md text-xs"
+                >
+                  {section}
+                </span>
+              ))}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 
@@ -404,16 +554,13 @@ const DegreePrograms = ({ universityId, programs, onUpdatePrograms }) => {
                         exit={{ opacity: 0, height: 0 }}
                         className="mt-2"
                       >
-                        <ul className="flex flex-wrap gap-2">
+                        <div className="space-y-2">
                           {program.branches.map((branch, branchIndex) => (
-                            <li
-                              key={branchIndex}
-                              className="px-2 py-1 bg-indigo-100 text-indigo-800 rounded-md text-xs"
-                            >
-                              {branch}
-                            </li>
+                            <div key={branchIndex}>
+                              {renderBranchDetails(branch, branchIndex)}
+                            </div>
                           ))}
-                        </ul>
+                        </div>
                       </motion.div>
                     )}
                 </AnimatePresence>
