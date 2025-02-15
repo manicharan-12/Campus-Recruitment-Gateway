@@ -33,17 +33,18 @@ const PlacementModal = ({
 }) => {
   const { control, handleSubmit, watch, setValue } = useForm({
     defaultValues: {
-      offers: [{ company: "", role: "", ctc: "" }],
+      offers:
+        existingOffers.length > 0
+          ? existingOffers.map((offer) => ({
+              company: offer.company || "",
+              role: offer.role || "",
+              ctc: offer.ctc || "",
+            }))
+          : [{ company: "", role: "", ctc: "" }],
     },
   });
 
-  const offers = watch("offers");
-
-  useEffect(() => {
-    if (isOpen && existingOffers.length > 0) {
-      setValue("offers", existingOffers);
-    }
-  }, [isOpen, existingOffers, setValue]);
+  const offers = watch("offers") || [];
 
   const addOffer = () => {
     setValue("offers", [...offers, { company: "", role: "", ctc: "" }]);
@@ -55,12 +56,19 @@ const PlacementModal = ({
   };
 
   const onFormSubmit = (data) => {
+    // Validate and clean offers data before submission
+    const validOffers = data.offers
+      .filter((offer) => offer.company && offer.role && offer.ctc)
+      .map((offer) => ({
+        company: offer.company.trim(),
+        role: offer.role.trim(),
+        ctc: parseFloat(offer.ctc) || 0,
+      }));
+
     onSubmit({
-      studentId: student.id,
-      isPlaced: true,
-      offers: data.offers.filter(
-        (offer) => offer.company && offer.role && offer.ctc
-      ),
+      studentId: student?.id,
+      isPlaced: validOffers.length > 0,
+      offers: validOffers,
     });
     onClose();
   };
@@ -68,16 +76,12 @@ const PlacementModal = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto">
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-black bg-opacity-50">
       <div className="flex items-center justify-center min-h-screen px-4">
-        <div
-          className="fixed inset-0 bg-black bg-opacity-50"
-          onClick={onClose}
-        />
         <div className="relative bg-white rounded-lg w-full max-w-md p-6">
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-lg font-semibold">
-              Add Placement Offer - {student?.name}
+              Add Placement Offer - {student?.name || "Student"}
             </h2>
             <button
               onClick={onClose}
@@ -91,14 +95,16 @@ const PlacementModal = ({
             {offers.map((_, index) => (
               <div key={index} className="p-4 border rounded-lg space-y-4">
                 <div className="flex justify-between items-center">
-                  <h3 className="font-medium">New Offer</h3>
-                  <button
-                    type="button"
-                    onClick={() => removeOffer(index)}
-                    className="text-red-500 hover:text-red-700"
-                  >
-                    <X size={16} />
-                  </button>
+                  <h3 className="font-medium">Offer {index + 1}</h3>
+                  {offers.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => removeOffer(index)}
+                      className="text-red-500 hover:text-red-700"
+                    >
+                      <X size={16} />
+                    </button>
+                  )}
                 </div>
 
                 <div className="space-y-4">
@@ -115,12 +121,22 @@ const PlacementModal = ({
                         name={`offers.${index}.company`}
                         control={control}
                         rules={{ required: true }}
-                        render={({ field }) => (
-                          <input
-                            {...field}
-                            className="w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500"
-                            placeholder="Enter company name"
-                          />
+                        render={({ field, fieldState: { error } }) => (
+                          <div>
+                            <input
+                              {...field}
+                              className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 
+                                ${
+                                  error ? "border-red-500" : "border-gray-300"
+                                }`}
+                              placeholder="Enter company name"
+                            />
+                            {error && (
+                              <span className="text-red-500 text-sm mt-1">
+                                Company name is required
+                              </span>
+                            )}
+                          </div>
                         )}
                       />
                     </div>
@@ -139,12 +155,22 @@ const PlacementModal = ({
                         name={`offers.${index}.role`}
                         control={control}
                         rules={{ required: true }}
-                        render={({ field }) => (
-                          <input
-                            {...field}
-                            className="w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500"
-                            placeholder="Enter role/position"
-                          />
+                        render={({ field, fieldState: { error } }) => (
+                          <div>
+                            <input
+                              {...field}
+                              className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500
+                                ${
+                                  error ? "border-red-500" : "border-gray-300"
+                                }`}
+                              placeholder="Enter role/position"
+                            />
+                            {error && (
+                              <span className="text-red-500 text-sm mt-1">
+                                Role is required
+                              </span>
+                            )}
+                          </div>
                         )}
                       />
                     </div>
@@ -162,16 +188,33 @@ const PlacementModal = ({
                       <Controller
                         name={`offers.${index}.ctc`}
                         control={control}
-                        rules={{ required: true, min: 0 }}
-                        render={({ field }) => (
-                          <input
-                            {...field}
-                            type="number"
-                            step="0.1"
-                            min="0"
-                            className="w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500"
-                            placeholder="Enter CTC in LPA"
-                          />
+                        rules={{
+                          required: true,
+                          min: 0,
+                          validate: (value) =>
+                            !isNaN(value) || "Must be a number",
+                        }}
+                        render={({ field, fieldState: { error } }) => (
+                          <div>
+                            <input
+                              {...field}
+                              type="number"
+                              step="0.1"
+                              min="0"
+                              className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500
+                                ${
+                                  error ? "border-red-500" : "border-gray-300"
+                                }`}
+                              placeholder="Enter CTC in LPA"
+                            />
+                            {error && (
+                              <span className="text-red-500 text-sm mt-1">
+                                {error.type === "min"
+                                  ? "CTC must be positive"
+                                  : "Valid CTC is required"}
+                              </span>
+                            )}
+                          </div>
                         )}
                       />
                     </div>
@@ -185,7 +228,8 @@ const PlacementModal = ({
               onClick={addOffer}
               className="w-full py-2 text-indigo-600 hover:text-indigo-700 font-medium border-2 border-dashed border-indigo-300 rounded-lg hover:border-indigo-400"
             >
-              + Add Another Offer
+              <Plus className="inline-block mr-1" size={16} />
+              Add Another Offer
             </button>
 
             <div className="flex justify-end space-x-3 mt-6">
@@ -210,9 +254,9 @@ const PlacementModal = ({
   );
 };
 
-const PlacementBubbles = ({ offers }) => {
+const PlacementBubbles = ({ offers = [] }) => {
   // Generate consistent colors based on company names
-  const getCompanyColor = (company) => {
+  const getCompanyColor = (company = "") => {
     const colors = [
       "bg-blue-500",
       "bg-purple-500",
@@ -231,17 +275,23 @@ const PlacementBubbles = ({ offers }) => {
 
   return (
     <div className="flex flex-wrap gap-2 mt-2">
-      {offers.map((offer, index) => (
-        <div
-          key={offer._id || index}
-          className={`${getCompanyColor(
-            offer.company
-          )} text-white text-sm px-3 py-1 rounded-full`}
-          title={`${offer.role} - ${offer.ctc} LPA`}
-        >
-          {offer.company}
-        </div>
-      ))}
+      {offers.map((offer, index) => {
+        const company = offer?.company || "Unknown Company";
+        const role = offer?.role || "Unknown Role";
+        const ctc = offer?.ctc || "N/A";
+
+        return (
+          <div
+            key={offer?._id || index}
+            className={`${getCompanyColor(
+              company
+            )} text-white text-sm px-3 py-1 rounded-full`}
+            title={`${role} - ${ctc} LPA`}
+          >
+            {company}
+          </div>
+        );
+      })}
     </div>
   );
 };
@@ -269,7 +319,6 @@ const StudentList = () => {
   const role = getUserRole();
   const isAdminRole = role === "admin" || role === "super admin";
   const isPlacementRole = role === "head" || role === "coordinator";
-  console.log(isPlacementRole);
 
   const { data, isLoading, isError, error } = useQuery({
     queryKey: ["students", "data"],
@@ -418,7 +467,7 @@ const StudentList = () => {
     }
     if (selectedYear) {
       filtered = filtered.filter(
-        (student) => student.graduationYear.toString() === selectedYear
+        (student) => student?.graduationYear.toString() === selectedYear
       );
     }
     if (searchQuery) {
@@ -532,7 +581,13 @@ const StudentList = () => {
 
   const yearOptions = useMemo(
     () =>
-      Array.from(new Set(data?.data?.students?.map((s) => s.graduationYear)))
+      Array.from(
+        new Set(
+          data?.data?.students
+            ?.filter((s) => s.graduationYear != null)
+            .map((s) => s.graduationYear)
+        )
+      )
         .sort()
         .map((year) => ({
           value: year.toString(),
@@ -697,30 +752,6 @@ const StudentList = () => {
           )}
 
           {/* Degree Filter */}
-          {isAdminRole && (
-            <div className="w-full">
-              <Controller
-                name="university"
-                control={control}
-                render={({ field }) => (
-                  <CustomSelect
-                    options={universityOptions}
-                    value={field.value || null}
-                    onChange={(option) => {
-                      field.onChange(option);
-                      setSelectedUniversity(option?.value || "");
-                      setSelectedDegree("");
-                      setSelectedBranch("");
-                    }}
-                    placeholder="Select University"
-                    isClearable={true}
-                  />
-                )}
-              />
-            </div>
-          )}
-
-          {/* Branch Filter */}
           <div className="w-full">
             <Controller
               name="degree"
@@ -897,9 +928,11 @@ const StudentList = () => {
             <div className="flex items-start justify-between">
               <div className="flex-1">
                 <h3 className="text-lg font-semibold text-gray-800 break-words">
-                  {student.name}
+                  {student?.name || "Not Specified by the User"}
                 </h3>
-                <p className="text-gray-600">{student.rollNumber}</p>
+                <p className="text-gray-600">
+                  {student?.rollNumber || "Not Specified by the User"}
+                </p>
               </div>
               <GraduationCap
                 className="text-indigo-500 flex-shrink-0 ml-2"
@@ -910,19 +943,22 @@ const StudentList = () => {
             {/* Student Details */}
             <div className="mt-4 space-y-2">
               <p className="text-gray-600 break-words">
-                <span className="font-medium">Email:</span> {student.email}
+                <span className="font-medium">Email:</span>{" "}
+                {student?.email || "Not Specified by the User"}
               </p>
               {isAdminRole && (
                 <p className="text-gray-600">
                   <span className="font-medium">University:</span>{" "}
-                  {student.university}
+                  {student?.university || "Not Specified by the User"}
                 </p>
               )}
               <p className="text-gray-600">
-                <span className="font-medium">Degree:</span> {student.degree}
+                <span className="font-medium">Degree:</span>{" "}
+                {student?.degree || "Not Specified by the User"}
               </p>
               <p className="text-gray-600">
-                <span className="font-medium">Branch:</span> {student.branch}
+                <span className="font-medium">Branch:</span>{" "}
+                {student?.branch || "Not Specified by the User"}
               </p>
               <p className="text-gray-600">
                 <span className="font-medium">Section:</span>{" "}
@@ -930,7 +966,7 @@ const StudentList = () => {
               </p>
               <p className="text-gray-600">
                 <span className="font-medium">Graduation Year:</span>{" "}
-                {student.graduationYear}
+                {student?.graduationYear || "N/A"}
               </p>
 
               {/* Placement Status - Only for placement roles */}
@@ -989,7 +1025,9 @@ const StudentList = () => {
                             className="flex justify-between items-center p-2 bg-gray-50 rounded"
                           >
                             <div>
-                              <p className="font-medium">{offer.company}</p>
+                              <p className="font-medium">
+                                {offer?.company || "Not Specified by the user"}
+                              </p>
                               <p className="text-sm text-gray-600">
                                 {offer.role}
                               </p>
