@@ -1,6 +1,6 @@
 // services/cronJobs/profileUpdateReminder.js
 const cron = require("node-cron");
-const Student = require("../models/Student");
+const { Student } = require("../models/Student");
 const { sendProfileUpdateReminderMail } = require("./emailService");
 
 // Schedule the cron job to run every 15 days

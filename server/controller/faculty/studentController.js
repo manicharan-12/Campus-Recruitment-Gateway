@@ -1,5 +1,5 @@
 const Faculty = require("../../models/Faculty");
-const Student = require("../../models/Student");
+const { Student } = require("../../models/Student");
 const University = require("../../models/University");
 const { sendBulkNotification } = require("../../services/emailService");
 

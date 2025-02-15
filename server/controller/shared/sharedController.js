@@ -3,7 +3,7 @@ const University = require("../../models/University");
 const Faculty = require("../../models/Faculty");
 const Admin = require("../../models/Admin");
 const Token = require("../../models/Token");
-const Student = require("../../models/Student");
+const { Student } = require("../../models/Student");
 const {
   sendResetPasswordMail,
   sendPasswordResetSuccessMail,
@@ -581,7 +581,7 @@ exports.removePlacementOffer = async (req, res) => {
       });
     }
 
-    const student = await Student.findById(studentId);
+    const student  = await Student.findById(studentId);
     if (!student) {
       return res.status(404).json({
         success: false,

@@ -253,7 +253,7 @@ studentSchema.methods.recordLogin = async function () {
   await this.save();
 };
 
-const Student = mongoose.model("Student", studentSchema);
+const Student  = mongoose.model("Student", studentSchema);
 
 async function initializeIndexes() {
   try {

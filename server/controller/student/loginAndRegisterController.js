@@ -134,7 +134,13 @@ exports.createStudentAccount = async (req, res) => {
       }
     }
 
-    if (!firstName || !lastName || !whatsappNumber || !password || !universityId) {
+    if (
+      !firstName ||
+      !lastName ||
+      !whatsappNumber ||
+      !password ||
+      !universityId
+    ) {
       throw new Error("All required fields must be provided");
     }
 
@@ -165,7 +171,7 @@ exports.createStudentAccount = async (req, res) => {
       { $push: { students: student._id } },
       { session }
     );
-    
+
     await session.commitTransaction();
 
     res.status(201).json({
@@ -183,8 +189,10 @@ exports.createStudentAccount = async (req, res) => {
     if (error.code === 11000) {
       statusCode = 409;
       message = "Duplicate entry found. Please check email and roll number.";
-    } else if (error.message.includes("already registered") || 
-               error.message.includes("already exists")) {
+    } else if (
+      error.message.includes("already registered") ||
+      error.message.includes("already exists")
+    ) {
       statusCode = 409;
       message = error.message;
     } else if (error.message.includes("required")) {
@@ -216,7 +224,9 @@ exports.loginStudent = async (req, res) => {
       });
     }
 
-    const student = await Student.findOne({ "personal.collegeEmail": email });
+    const student = await Student.findOne({
+      "personal.collegeEmail": email,
+    });
 
     if (!student) {
       return res.status(404).json({

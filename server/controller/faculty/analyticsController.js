@@ -1,5 +1,5 @@
 const AnalyticsConfig = require("../../models/AnalyticsConfig");
-const Student = require("../../models/Student");
+const { Student } = require("../../models/Student");
 
 exports.getAllAnalytics = async (req, res) => {
   try {

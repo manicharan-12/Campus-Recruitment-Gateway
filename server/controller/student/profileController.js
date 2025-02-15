@@ -1,4 +1,4 @@
-const Student = require("../../models/Student");
+const { Student } = require("../../models/Student");
 const { uploadToS3 } = require("../../services/fileUpload");
 const { S3_PATHS } = require("../../config/s3Config");
 

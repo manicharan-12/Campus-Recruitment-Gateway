@@ -1,5 +1,5 @@
 const jwt = require("jsonwebtoken");
-const Student = require("../../models/Student");
+const { Student } = require("../../models/Student");
 
 const verifyTokenAndRole = async (req, res, next) => {
   try {
@@ -17,7 +17,7 @@ const verifyTokenAndRole = async (req, res, next) => {
     if (!student) {
       return res.status(401).json({ error: "Student not found" });
     }
-    
+
     req.student = student;
     req.token = token;
     next();
