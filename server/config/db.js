@@ -1,5 +1,5 @@
 const mongoose = require("mongoose");
-
+const {initializeIndexes}=require("../models/Student")
 
 const connectDB = async () => {
   try {
@@ -11,6 +11,8 @@ const connectDB = async () => {
       }
     );
     console.log(`MongoDB successfully connected`);
+
+    await initializeIndexes();
   } catch (error) {
     console.error("MongoDB connection error:", error);
     process.exit(1);

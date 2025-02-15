@@ -377,7 +377,7 @@ const StudentRegistrationForm = () => {
         throw new Error("Please select a country code");
       }
 
-      const formattedWhatsappNumber = `+${countryCode}${data.whatsappNumber}`;
+      const formattedWhatsappNumber = `${countryCode}${data.whatsappNumber}`;
 
       const requestBody = {
         firstName: data.firstName,
@@ -387,6 +387,7 @@ const StudentRegistrationForm = () => {
         password: data.password,
         universityId: data.university.value,
       };
+      console.log(requestBody)
 
       try {
         const response = await fetch(

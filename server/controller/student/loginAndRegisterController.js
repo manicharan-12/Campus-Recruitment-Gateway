@@ -1,4 +1,4 @@
-const Student = require("../../models/Student");
+const { Student } = require("../../models/Student");
 const University = require("../../models/University");
 const { generateOTP } = require("../../services/otpService");
 const {
@@ -9,7 +9,7 @@ const { sendOTPMail } = require("../../services/emailService");
 const { sendVerificationCode } = require("../../services/whatsappService");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
-const mongoose= require("mongoose");
+const mongoose = require("mongoose");
 
 exports.getMailOtP = async (req, res) => {
   try {
@@ -97,7 +97,6 @@ exports.verifyWhatsappOtp = async (req, res) => {
 exports.createStudentAccount = async (req, res) => {
   const session = await mongoose.startSession();
   session.startTransaction();
-
   try {
     const {
       firstName,
@@ -106,58 +105,102 @@ exports.createStudentAccount = async (req, res) => {
       whatsappNumber,
       password,
       universityId,
+      rollNumber,
     } = req.body;
 
-    // Find university within the session
+    // Enhanced input validation
+    if (!email || !email.trim()) {
+      throw new Error("Email is required");
+    }
+
+    const existingEmail = await Student.findOne({
+      "personal.collegeEmail": email.toLowerCase().trim(),
+    });
+
+    if (existingEmail) {
+      throw new Error("Email already registered");
+    }
+
+    // Only check for duplicate roll number if one is provided
+    if (rollNumber && rollNumber.trim()) {
+      const normalizedRollNumber = rollNumber.toLowerCase().trim();
+      const existingRollNumber = await Student.findOne({
+        "academic.university": universityId,
+        "academic.rollNumber": normalizedRollNumber,
+      });
+
+      if (existingRollNumber) {
+        throw new Error("Roll number already exists for this university");
+      }
+    }
+
+    if (!firstName || !lastName || !whatsappNumber || !password || !universityId) {
+      throw new Error("All required fields must be provided");
+    }
+
     const university = await University.findById(universityId).session(session);
     if (!university) {
-      await session.abortTransaction();
-      return res.status(404).json({
-        success: false,
-        message: "University not found",
-      });
+      throw new Error("University not found");
     }
 
     const student = new Student({
       personal: {
-        firstName,
-        lastName,
-        whatsappNumber,
-        collegeEmail: email,
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
+        whatsappNumber: whatsappNumber.trim(),
+        collegeEmail: email.toLowerCase().trim(),
       },
       academic: {
         university: universityId,
+        rollNumber: rollNumber ? rollNumber.toLowerCase().trim() : null,
       },
       auth: {
         password,
+        isProfileComplete: false,
       },
     });
 
-    // Save student within the session
     await student.save({ session });
-
-    // Add student to university's students array
-    university.students.push(student._id);
-    await university.save({ session });
-
-    // Commit the transaction
+    await university.updateOne(
+      { $push: { students: student._id } },
+      { session }
+    );
+    
     await session.commitTransaction();
 
     res.status(201).json({
       success: true,
       message: "Student Account Created Successfully",
+      studentId: student._id,
     });
   } catch (error) {
-    // Abort transaction on error
     await session.abortTransaction();
     console.error("Account creation error:", error);
-    res.status(500).json({
+
+    let statusCode = 500;
+    let message = "Error creating student account";
+
+    if (error.code === 11000) {
+      statusCode = 409;
+      message = "Duplicate entry found. Please check email and roll number.";
+    } else if (error.message.includes("already registered") || 
+               error.message.includes("already exists")) {
+      statusCode = 409;
+      message = error.message;
+    } else if (error.message.includes("required")) {
+      statusCode = 400;
+      message = error.message;
+    } else if (error.message === "University not found") {
+      statusCode = 404;
+      message = error.message;
+    }
+
+    res.status(statusCode).json({
       success: false,
-      message: "Error creating student account",
+      message,
       error: error.message,
     });
   } finally {
-    // End session
     session.endSession();
   }
 };

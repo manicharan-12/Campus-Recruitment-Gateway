@@ -1,6 +1,27 @@
 const mongoose = require("mongoose");
 const bcrypt = require("bcryptjs");
 
+async function cleanupIndexes(collection) {
+  const indexesToDrop = [
+    "email_1",
+    "collegeEmail_1",
+    "personalInfo.collegeEmail_1",
+    "systemInfo.university_1_academicInfo.rollNumber_1",
+    "academic.university_1_academic.rollNumber_1",
+    "personal.collegeEmail_1",
+    "academic.rollNumber_1",
+    "university_rollnumber_unique",
+  ];
+
+  for (const indexName of indexesToDrop) {
+    try {
+      await collection.dropIndex(indexName);
+    } catch (error) {
+      console.log(`Index ${indexName} may not exist, continuing...`);
+    }
+  }
+}
+
 const addressSchema = new mongoose.Schema({
   street: String,
   city: String,
@@ -34,8 +55,8 @@ const studentSchema = new mongoose.Schema(
       collegeEmail: {
         type: String,
         required: true,
-        unique: true,
         lowercase: true,
+        unique: true,
       },
       personalEmail: { type: String, lowercase: true },
       religion: { type: String },
@@ -71,7 +92,8 @@ const studentSchema = new mongoose.Schema(
       rollNumber: {
         type: String,
         lowercase: true,
-        unique: true,
+        sparse: true,
+        default: null,
       },
       collegeName: String,
       degreeProgram: String,
@@ -135,6 +157,7 @@ const studentSchema = new mongoose.Schema(
       },
       annualIncome: Number,
     },
+
     placement: {
       isPlaced: { type: Boolean, default: false },
       offers: [placementSchema],
@@ -173,11 +196,40 @@ const studentSchema = new mongoose.Schema(
   }
 );
 
-// Indexes
-studentSchema.index({ "personal.collegeEmail": 1 });
+const ROLL_NUMBER_INDEX = "university_rollnumber_unique";
+const EMAIL_INDEX = "personal.collegeEmail_1";
+
+// Remove any existing index definitions
+studentSchema.clearIndexes();
+
+// Add the compound index for roll numbers with explicit name
 studentSchema.index(
-  { "academic.university": 1, "academic.rollNumber": 1 },
-  { unique: true }
+  {
+    "academic.university": 1,
+    "academic.rollNumber": 1,
+  },
+  {
+    unique: true,
+    name: ROLL_NUMBER_INDEX,
+    partialFilterExpression: {
+      "academic.rollNumber": { $type: "string" },
+      "academic.university": { $exists: true },
+    },
+    background: true,
+  }
+);
+
+// Add the email index with explicit name
+studentSchema.index(
+  { "personal.collegeEmail": 1 },
+  {
+    unique: true,
+    name: EMAIL_INDEX,
+    background: true,
+    partialFilterExpression: {
+      "personal.collegeEmail": { $exists: true },
+    },
+  }
 );
 
 // Password hashing middleware
@@ -202,4 +254,61 @@ studentSchema.methods.recordLogin = async function () {
 };
 
 const Student = mongoose.model("Student", studentSchema);
-module.exports = Student;
+
+async function initializeIndexes() {
+  try {
+    const collection = mongoose.connection.collection("students");
+    console.log("Starting index cleanup...");
+    await cleanupIndexes(collection);
+    console.log("Old indexes cleaned up successfully");
+
+    // Get current indexes
+    const currentIndexes = await collection.indexes();
+    console.log("Current indexes:", currentIndexes);
+
+    // Create the roll number index
+    await collection.createIndex(
+      {
+        "academic.university": 1,
+        "academic.rollNumber": 1,
+      },
+      {
+        unique: true,
+        name: ROLL_NUMBER_INDEX,
+        partialFilterExpression: {
+          "academic.rollNumber": { $type: "string" },
+          "academic.university": { $exists: true },
+        },
+        background: true,
+      }
+    );
+    console.log(`Created ${ROLL_NUMBER_INDEX} index`);
+
+    // Create the email index
+    await collection.createIndex(
+      { "personal.collegeEmail": 1 },
+      {
+        unique: true,
+        name: EMAIL_INDEX,
+        background: true,
+        partialFilterExpression: {
+          "personal.collegeEmail": { $exists: true },
+        },
+      }
+    );
+    console.log(`Created ${EMAIL_INDEX} index`);
+
+    const finalIndexes = await collection.indexes();
+    console.log("Final indexes:", finalIndexes);
+
+    console.log("Index initialization completed successfully");
+  } catch (error) {
+    console.error("Error managing indexes:", error);
+    throw error;
+  }
+}
+
+module.exports = {
+  Student,
+  initializeIndexes,
+};
