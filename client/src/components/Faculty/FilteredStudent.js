@@ -11,8 +11,9 @@ import {
   ArrowRight,
   Loader2,
   Download,
+  AlertCircle,
 } from "lucide-react";
-import { FaSort, FaSortUp, FaSortDown } from "react-icons/fa";
+import { FaSort, FaSortUp, FaSortDown, FaDatabase } from "react-icons/fa";
 import Select from "react-select";
 import Cookies from "js-cookie";
 import * as XLSX from "xlsx";
@@ -154,6 +155,38 @@ const FilteredStudents = () => {
 
   const jwtToken = Cookies.get("userCookie");
 
+  const { data, isLoading } = useQuery({
+    queryKey: [
+      "students",
+      currentPage,
+      filters,
+      sortConfig,
+      placementStatus.value,
+    ],
+    queryFn: async () => {
+      const params = new URLSearchParams({
+        page: currentPage,
+        limit: 10,
+        ...(sortConfig.key && {
+          sortBy: sortConfig.key,
+          sortOrder: sortConfig.direction,
+        }),
+        ...filters,
+        ...(placementStatus.value !== "all" && {
+          isPlaced: placementStatus.value === "placed",
+        }),
+      });
+
+      const response = await axios.get(
+        `${process.env.REACT_APP_SERVER_API_URL}/faculty/student/filtered?${params}`,
+        {
+          headers: { Authorization: `Bearer ${jwtToken}` },
+        }
+      );
+      return response.data;
+    },
+  });
+
   const { data: universityData } = useQuery({
     queryKey: ["university", "degreePrograms"],
     queryFn: async () => {
@@ -207,38 +240,6 @@ const FilteredStudents = () => {
     }
   }, [selectedDegree, degreePrograms]);
 
-  const { data, isLoading } = useQuery({
-    queryKey: [
-      "students",
-      currentPage,
-      filters,
-      sortConfig,
-      placementStatus.value,
-    ],
-    queryFn: async () => {
-      const params = new URLSearchParams({
-        page: currentPage,
-        limit: 10,
-        ...(sortConfig.key && {
-          sortBy: sortConfig.key,
-          sortOrder: sortConfig.direction,
-        }),
-        ...filters,
-        ...(placementStatus.value !== "all" && {
-          isPlaced: placementStatus.value === "placed",
-        }),
-      });
-
-      const response = await axios.get(
-        `${process.env.REACT_APP_SERVER_API_URL}/faculty/student/filtered?${params}`,
-        {
-          headers: { Authorization: `Bearer ${jwtToken}` },
-        }
-      );
-      return response.data;
-    },
-  });
-
   useEffect(() => {
     if (data?.data.students) {
       setLocalData(data.data.students);
@@ -258,12 +259,10 @@ const FilteredStudents = () => {
         if (prev.direction === "asc") {
           return { key, direction: "desc" };
         }
-
         if (prev.direction === "desc") {
           return { key: "", direction: "" };
         }
       }
-
       return { key, direction: "asc" };
     });
   };
@@ -559,6 +558,8 @@ const FilteredStudents = () => {
     );
   }
 
+  const hasNoData = !localData || localData.length === 0;
+
   return (
     <div className="p-6 space-y-6 bg-gray-50/30 rounded-xl shadow-sm">
       <div className="flex justify-between items-center">
@@ -607,60 +608,106 @@ const FilteredStudents = () => {
         </motion.button>
       </div>
 
-      <div className="overflow-hidden rounded-xl border border-indigo-100 bg-white shadow-sm">
-        <div className="overflow-x-auto">
-          <table className="w-full border-collapse">
-            <thead>
-              <tr className="bg-gradient-to-r from-indigo-50 to-indigo-100">
-                {activeColumns.map((column) => (
-                  <th
-                    key={column.key}
-                    className="p-3 cursor-pointer relative text-left text-sm font-semibold text-gray-700 transition-colors hover:bg-indigo-100/50"
-                    onClick={() => handleSort(column.key)}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span>{column.label}</span>
-                      <div className="flex items-center gap-2">
-                        {getSortIcon(column.key)}
-                        <motion.button
-                          whileHover={{ scale: 1.1 }}
-                          whileTap={{ scale: 0.9 }}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleRemoveColumn(column.key);
-                          }}
-                          className="text-gray-400 hover:text-red-500 transition-colors"
+      {hasNoData ? (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex flex-col items-center justify-center h-64 bg-white rounded-xl border border-indigo-100 p-8"
+        >
+          <motion.div
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            transition={{
+              type: "spring",
+              stiffness: 260,
+              damping: 20,
+            }}
+            className="flex gap-3 mb-4"
+          >
+            <FaDatabase className="w-8 h-8 text-indigo-400" />
+            <AlertCircle className="w-8 h-8 text-indigo-400" />
+          </motion.div>
+
+          <motion.h3
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.2 }}
+            className="text-xl font-semibold text-gray-700 mb-2"
+          >
+            No Data Available
+          </motion.h3>
+
+          <motion.p
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.3 }}
+            className="text-gray-500 text-center max-w-md"
+          >
+            There are currently no student records matching your search
+            criteria. Try adjusting your filters.
+          </motion.p>
+        </motion.div>
+      ) : (
+        <>
+          <div className="overflow-hidden rounded-xl border border-indigo-100 bg-white shadow-sm">
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse">
+                <thead>
+                  <tr className="bg-gradient-to-r from-indigo-50 to-indigo-100">
+                    {activeColumns.map((column) => (
+                      <th
+                        key={column.key}
+                        className="p-3 cursor-pointer relative text-left text-sm font-semibold text-gray-700 transition-colors hover:bg-indigo-100/50"
+                        onClick={() => handleSort(column.key)}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span>{column.label}</span>
+                          <div className="flex items-center gap-2">
+                            {getSortIcon(column.key)}
+                            <motion.button
+                              whileHover={{ scale: 1.1 }}
+                              whileTap={{ scale: 0.9 }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleRemoveColumn(column.key);
+                              }}
+                              className="text-gray-400 hover:text-red-500 transition-colors"
+                            >
+                              <Trash className="w-4 h-4" />
+                            </motion.button>
+                          </div>
+                        </div>
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {localData.map((student, index) => (
+                    <motion.tr
+                      key={student._id}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: index * 0.05 }}
+                      className="border-b border-indigo-50 hover:bg-indigo-50/30 transition-colors"
+                    >
+                      {activeColumns.map((column) => (
+                        <td
+                          key={column.key}
+                          className="p-3 text-sm text-gray-600"
                         >
-                          <Trash className="w-4 h-4" />
-                        </motion.button>
-                      </div>
-                    </div>
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {localData.map((student, index) => (
-                <motion.tr
-                  key={student._id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.05 }}
-                  className="border-b border-indigo-50 hover:bg-indigo-50/30 transition-colors"
-                >
-                  {activeColumns.map((column) => (
-                    <td key={column.key} className="p-3 text-sm text-gray-600">
-                      {column.key === "fullName"
-                        ? `${student.personal.firstName} ${student.personal.lastName}`
-                        : getNestedValue(student, column.path)}
-                    </td>
+                          {column.key === "fullName"
+                            ? `${student.personal.firstName} ${student.personal.lastName}`
+                            : getNestedValue(student, column.path)}
+                        </td>
+                      ))}
+                    </motion.tr>
                   ))}
-                </motion.tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </>
+      )}
 
       <div className="flex justify-center items-center gap-4">
         <motion.button

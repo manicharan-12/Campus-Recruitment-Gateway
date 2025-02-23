@@ -10,6 +10,7 @@ const {
 } = require("../../services/emailService");
 const mongoose = require("mongoose");
 
+
 exports.generateResetToken = (user, role) => {
   const payload = {
     email: user.email,
@@ -30,6 +31,11 @@ exports.completeUniversityData = async (req, res) => {
 
     const university = await University.findById(id)
       .populate("faculties")
+      .populate({
+        path: "students",
+        select:
+          "personal.firstName personal.lastName personal.collegeEmail personal.whatsappNumber academic.rollNumber academic.degreeProgram academic.branch academic.section academic.graduationYear auth.isDeactivated auth.loginHistory auth.status auth.isProfileComplete",
+      })
       .lean();
 
     if (!university) {
@@ -41,6 +47,7 @@ exports.completeUniversityData = async (req, res) => {
       data: {
         university,
         faculties: university.faculties,
+        students: university.students,
         degreePrograms: university.degreePrograms || [],
       },
     });
@@ -230,7 +237,6 @@ exports.createDegreeProgram = async (req, res) => {
   }
 };
 
-// Update a degree program for a university
 exports.updateDegreeProgram = async (req, res) => {
   try {
     const { id, programId } = req.params;
@@ -279,7 +285,6 @@ exports.updateDegreeProgram = async (req, res) => {
   }
 };
 
-// Delete a degree program from a university
 exports.deleteDegreeProgram = async (req, res) => {
   try {
     const { id, programId } = req.params;
@@ -411,206 +416,6 @@ exports.getAllStudents = async (req, res) => {
     }
   } catch (error) {
     console.error("Error in getAllStudents:", error);
-    return res.status(500).json({
-      success: false,
-      message: "Internal server error",
-      error: error.message,
-    });
-  }
-};
-
-exports.updatePlacements = async (req, res) => {
-  try {
-    const { userType } = req;
-
-    // Authorization check
-    if (userType !== "Head" && userType !== "Coordinator") {
-      return res.status(403).json({
-        success: false,
-        message:
-          "Unauthorized: Only Head or Coordinator can update placement status",
-      });
-    }
-
-    const { placements } = req.body;
-
-    // Validate placements array
-    if (!Array.isArray(placements) || placements.length === 0) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid input: placements must be a non-empty array",
-      });
-    }
-
-    const updatePromises = placements.map(
-      async ({ studentId, isPlaced, offers }) => {
-        try {
-          // Find the student first to check if they exist
-          const student = await Student.findById(studentId);
-          if (!student) {
-            throw new Error(`Student not found with ID: ${studentId}`);
-          }
-
-          let updateData = {};
-
-          if (isPlaced && offers && offers.length > 0) {
-            // Validate each offer
-            offers.forEach((offer) => {
-              if (!offer.company || !offer.role || !offer.ctc) {
-                throw new Error(
-                  "Each offer must include company, role, and ctc"
-                );
-              }
-            });
-
-            // If student already has offers, merge them with new ones
-            let existingOffers = student.placement.offers || [];
-
-            // Add only new offers that don't exist
-            const newOffers = offers.filter(
-              (newOffer) =>
-                !existingOffers.some(
-                  (existingOffer) =>
-                    existingOffer.company === newOffer.company &&
-                    existingOffer.role === newOffer.role &&
-                    existingOffer.ctc === newOffer.ctc
-                )
-            );
-
-            updateData = {
-              $set: {
-                "placement.isPlaced": true,
-                "placement.offers": [...existingOffers, ...newOffers],
-              },
-            };
-          } else if (!isPlaced) {
-            // If student is being marked as not placed, only update the isPlaced flag
-            // but maintain existing offers
-            updateData = {
-              $set: {
-                "placement.isPlaced": false,
-              },
-            };
-          }
-
-          // Update the student document
-          const updatedStudent = await Student.findByIdAndUpdate(
-            studentId,
-            updateData,
-            {
-              new: true,
-              runValidators: true,
-            }
-          );
-
-          return updatedStudent;
-        } catch (error) {
-          throw new Error(
-            `Error updating student ${studentId}: ${error.message}`
-          );
-        }
-      }
-    );
-
-    // Execute all updates
-    const results = await Promise.all(updatePromises);
-
-    // Check if any students were successfully updated
-    if (results.length === 0) {
-      return res.status(404).json({
-        success: false,
-        message: "No students were updated",
-      });
-    }
-
-    return res.status(200).json({
-      success: true,
-      message: "Placement status updated successfully",
-      updatedCount: results.length,
-      students: results,
-    });
-  } catch (error) {
-    console.error("Error in updatePlacements:", error);
-    return res.status(500).json({
-      success: false,
-      message: "Internal server error",
-      error: error.message,
-    });
-  }
-};
-
-// New endpoint to get student placement details
-exports.getStudentPlacements = async (req, res) => {
-  try {
-    const { studentId } = req.params;
-
-    const student = await Student.findById(studentId).select("placement");
-
-    if (!student) {
-      return res.status(404).json({
-        success: false,
-        message: "Student not found",
-      });
-    }
-
-    return res.status(200).json({
-      success: true,
-      placement: student.placement,
-    });
-  } catch (error) {
-    console.error("Error in getStudentPlacements:", error);
-    return res.status(500).json({
-      success: false,
-      message: "Internal server error",
-      error: error.message,
-    });
-  }
-};
-
-// New endpoint to remove a specific placement offer
-exports.removePlacementOffer = async (req, res) => {
-  try {
-    const { userType } = req;
-    const { studentId, offerId } = req.params;
-
-    if (userType !== "Head" && userType !== "Coordinator") {
-      return res.status(403).json({
-        success: false,
-        message:
-          "Unauthorized: Only Head or Coordinator can remove placement offers",
-      });
-    }
-
-    const student  = await Student.findById(studentId);
-    if (!student) {
-      return res.status(404).json({
-        success: false,
-        message: "Student not found",
-      });
-    }
-
-    // Remove the specific offer
-    const updatedStudent = await Student.findByIdAndUpdate(
-      studentId,
-      {
-        $pull: {
-          "placement.offers": { _id: offerId },
-        },
-        // If no offers remain, update isPlaced to false
-        ...(student.placement.offers.length <= 1 && {
-          $set: { "placement.isPlaced": false },
-        }),
-      },
-      { new: true }
-    );
-
-    return res.status(200).json({
-      success: true,
-      message: "Placement offer removed successfully",
-      placement: updatedStudent.placement,
-    });
-  } catch (error) {
-    console.error("Error in removePlacementOffer:", error);
     return res.status(500).json({
       success: false,
       message: "Internal server error",

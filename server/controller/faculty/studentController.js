@@ -18,14 +18,42 @@ exports.getFilteredData = async (req, res) => {
     //sorting
     let sortOptions = {};
     if (req.query.sortBy && req.query.sortOrder) {
-      const sortField =
-        req.query.sortBy === "fullName"
-          ? "personal.firstName"
-          : req.query.sortBy;
+      // Map frontend column keys to MongoDB paths
+      const sortFieldMappings = {
+        fullName: "personal.firstName",
+        rollNumber: "academic.rollNumber",
+        collegeEmail: "personal.collegeEmail",
+        personalEmail: "personal.personalEmail",
+        dateOfBirth: "personal.dateOfBirth",
+        degreeProgram: "academic.degreeProgram",
+        branch: "academic.branch",
+        cgpa: "academic.cgpa",
+        backlogs: "academic.backlogs",
+        graduationYear: "academic.graduationYear",
+        tenthPercentage: "academic.tenth.percentage",
+        twelfthPercentage: "academic.twelfth.percentage",
+        aadharNumber: "documents.aadhar.number",
+        panNumber: "documents.pan.number",
+        fatherName: "family.father.name",
+        fatherContact: "family.father.contact",
+        motherName: "family.mother.name",
+        motherContact: "family.mother.contact",
+        linkedin: "social.linkedin",
+        github: "social.github",
+      };
 
-      // Only apply sorting if a direction is specified
+      const sortField = sortFieldMappings[req.query.sortBy] || req.query.sortBy;
+
       if (req.query.sortOrder === "asc" || req.query.sortOrder === "desc") {
         sortOptions[sortField] = req.query.sortOrder === "asc" ? 1 : -1;
+
+        // Special handling for fullName sorting
+        if (req.query.sortBy === "fullName") {
+          sortOptions = {
+            "personal.firstName": req.query.sortOrder === "asc" ? 1 : -1,
+            "personal.lastName": req.query.sortOrder === "asc" ? 1 : -1,
+          };
+        }
       }
     }
 

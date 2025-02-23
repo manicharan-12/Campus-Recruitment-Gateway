@@ -74,6 +74,28 @@ const universitySchema = new mongoose.Schema(
         ],
       },
     ],
+    placement: [
+      {
+        company: {
+          name: { type: String },
+          logo: { type: String },
+        },
+        opportunities: [
+          {
+            package: { type: String, required: true },
+            role: { type: String, required: true },
+            students: [
+              {
+                studentId: {
+                  type: mongoose.Schema.Types.ObjectId,
+                  ref: "Student",
+                },
+              },
+            ],
+          },
+        ],
+      },
+    ],
   },
   {
     timestamps: true,

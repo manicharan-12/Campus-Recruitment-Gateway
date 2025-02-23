@@ -32,6 +32,8 @@ import StudentList from "./components/Shared/StudentData/StudentList";
 import StudentProfile from "./components/Shared/StudentData/StudentProfile";
 import FilteredStudent from "./components/Faculty/FilteredStudent";
 import FacultyAnalytics from "./components/Faculty/FacultyAnalytics";
+import FacultyCompanies from "./components/Faculty/Placements/FacultyComapnies";
+import CompanyProfile from "./components/Faculty/Placements/CompanyProfile";
 
 const App = () => {
   const dispatch = useDispatch();
@@ -86,10 +88,7 @@ const App = () => {
           <Route path="/faculty/students" element={<StudentList />} />
           <Route path="/faculty/filter/student" element={<FilteredStudent />} />
           <Route path="/faculty/analytics" element={<FacultyAnalytics />} />
-          {/* <Route path="/faculty/forms" />
-          <Route path="/faculty/forms/new" />
-          <Route path="/faculty/forms/:id/edit" />
-          <Route path="/faculty/forms/:id/responses" /> */}
+          <Route path="/faculty/companies" element={<FacultyCompanies />} />
         </Route>
 
         {/* Student Routes */}
@@ -137,6 +136,16 @@ const App = () => {
             path="/student/complete-profile"
             element={<StudentProfileForm />}
           />
+        </Route>
+
+        <Route
+          element={
+            <ProtectedRoute allowedRoles={["Head", "Coordinator"]}>
+              <CompanyProfile />
+            </ProtectedRoute>
+          }
+        >
+          <Route path="/company/:id" element={<CompanyProfile />} />
         </Route>
 
         <Route

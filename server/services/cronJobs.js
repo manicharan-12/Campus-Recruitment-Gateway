@@ -1,34 +1,91 @@
-// services/cronJobs/profileUpdateReminder.js
 const cron = require("node-cron");
 const { Student } = require("../models/Student");
 const { sendProfileUpdateReminderMail } = require("./emailService");
 
-// Schedule the cron job to run every 15 days
-// Runs at 10:00 AM on every 1st and 15th day of the month
 exports.scheduleProfileUpdateReminders = () => {
-  cron.schedule("0 10 1,15 * *", async () => {
-    try {
-      console.log("Running profile update reminder cron job...");
+  // Validate cron expression
+  const cronExpression = "0 10 1,15 * *";
+  if (!cron.validate(cronExpression)) {
+    console.error("Invalid cron expression");
+    return;
+  }
 
-      // Find all active students
-      const studentsToRemind = await Student.find({
-        "auth.status": "active",
-        "auth.isDeactivated": false,
-      });
+  // Log when the service starts
+  console.log("Profile update reminder service initialized");
+  console.log("Cron schedule:", cronExpression);
+  console.log("Service started at:", new Date().toISOString());
 
-      // Send reminders to each student
-      for (const student of studentsToRemind) {
-        await sendProfileUpdateReminderMail(
-          student.personal.collegeEmail,
-          student.personal.firstName
+  cron.schedule(
+    cronExpression,
+    async () => {
+      console.log("Starting profile update reminder cron job...");
+      const startTime = Date.now();
+
+      try {
+        // Find all active students
+        const studentsToRemind = await Student.find({
+          "auth.status": "active",
+          "auth.isDeactivated": false,
+        });
+
+        console.log(
+          `Found ${studentsToRemind.length} active students to remind`
         );
-        await sendProfileUpdateReminder(
-          student.personal.whatsappNumber,
-          student.personal.firstName
+
+        let successCount = 0;
+        let errorCount = 0;
+        const errors = [];
+
+        // Send reminders to each student
+        for (const student of studentsToRemind) {
+          try {
+            await sendProfileUpdateReminderMail(
+              student.personal.collegeEmail,
+              student.personal.firstName
+            );
+
+            await sendProfileUpdateReminder(
+              student.personal.whatsappNumber,
+              student.personal.firstName
+            );
+
+            successCount++;
+          } catch (error) {
+            errorCount++;
+            errors.push({
+              studentId: student._id,
+              email: student.personal.collegeEmail,
+              error: error.message,
+            });
+            console.error(
+              `Error sending reminder to ${student.personal.collegeEmail}:`,
+              error
+            );
+          }
+        }
+
+        // Log summary
+        const duration = (Date.now() - startTime) / 1000;
+        console.log(`
+        Cron job completed in ${duration}s
+        Successfully sent: ${successCount}
+        Errors: ${errorCount}
+        Total processed: ${studentsToRemind.length}
+      `);
+
+        if (errors.length > 0) {
+          console.error("Detailed errors:", JSON.stringify(errors, null, 2));
+        }
+      } catch (error) {
+        console.error(
+          "Fatal error in profile update reminder cron job:",
+          error
         );
+        // You might want to add notification to admin here
       }
-    } catch (error) {
-      console.error("Error in profile update reminder cron job:", error);
+    },
+    {
+      timezone: "Asia/Kolkata",
     }
-  });
+  );
 };

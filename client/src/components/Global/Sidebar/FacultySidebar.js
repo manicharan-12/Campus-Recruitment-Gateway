@@ -5,6 +5,8 @@ import { toggleSidebar } from "../../../redux/facultySidebarSlice";
 import { motion, AnimatePresence } from "framer-motion";
 import { SiGoogleforms } from "react-icons/si";
 import { PiStudent } from "react-icons/pi";
+import { LiaSuitcaseSolid } from "react-icons/lia";
+
 import {
   ChevronLeft,
   ChevronRight,
@@ -49,6 +51,12 @@ const MENU_ITEMS = [
     ariaLabel: "Navigate to Students",
   },
   {
+    icon: LiaSuitcaseSolid,
+    label: "Companies",
+    path: "/faculty/companies",
+    ariaLabel: "Navigate to Companies",
+  },
+  {
     icon: SlidersHorizontal,
     label: "Filter and Download",
     path: "/faculty/filter/student",
@@ -60,16 +68,16 @@ const MENU_ITEMS = [
     path: "/faculty/analytics",
     ariaLabel: "Navigate to Analytics",
   },
-  {
-    icon: SiGoogleforms,
-    label: "Forms",
-    path: "/faculty/forms",
-    ariaLabel: "Navigate to Forms",
-  },
+  // {
+  //   icon: SiGoogleforms,
+  //   label: "Forms",
+  //   path: "/faculty/forms",
+  //   ariaLabel: "Navigate to Forms",
+  // },
 ];
 
 const MenuItem = React.memo(({ item, isOpen }) => {
-  const IconComponent = item.icon; 
+  const IconComponent = item.icon;
   return (
     <motion.div
       className="group flex items-center mb-2 cursor-pointer rounded-lg transition-colors"

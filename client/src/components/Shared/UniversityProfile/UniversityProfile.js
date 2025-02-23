@@ -156,7 +156,7 @@ const UniversityProfile = () => {
     return <ErrorOverlay statusCode={500} />;
   }
 
-  const { university, faculties, degreePrograms } = data;
+  const { university, faculties, students, degreePrograms } = data;
   const headFaculty = faculties.filter((faculty) => faculty.role === "Head");
 
   return (
@@ -195,7 +195,10 @@ const UniversityProfile = () => {
         universityId={id}
       />
 
-      <StudentSection />
+      <StudentSection 
+      students={students} universityId={id} 
+
+      />
 
       {isEditModalOpen && (
         <Modal

@@ -24,6 +24,9 @@ const S3_PATHS = {
     PROFILE: "student/profile",
     DOCUMENTS: "student/documents",
   },
+  COMPANY: {
+    LOGO: "company/logo",
+  },
   COMMON: {
     TEMP: "temp",
   },

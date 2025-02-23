@@ -5,6 +5,7 @@ const validateResetToken = require("../../middleware/resetTokenValidation");
 const verifyToken = require("../../middleware/verifyToken");
 const verifyTokenAndRoleAll = require("../../middleware/Shared/verifyTokenAndRoleAll");
 
+
 router.get(
   "/university/:id",
   verifyToken(),
@@ -45,18 +46,6 @@ router.get(
   "/students/data",
   verifyTokenAndRoleAll(),
   sharedController.getAllStudents
-);
-
-router.post(
-  "/students/update-placements",
-  verifyTokenAndRoleAll(),
-  sharedController.updatePlacements
-);
-
-router.delete(
-  "/students/placement-offer/:studentId/:offerId",
-  verifyTokenAndRoleAll(),
-  sharedController.removePlacementOffer
 );
 
 router.get(
