@@ -164,7 +164,7 @@ const FacultyLogin = () => {
       return data;
     },
     onSuccess: (data) => {
-      Cookies.set("userCookie", data.token);
+      Cookies.set("userCookie", data.token, { expires: 1 });
       dispatch(
         setTokenAndRole({
           token: data.token,

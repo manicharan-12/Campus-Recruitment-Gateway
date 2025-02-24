@@ -6,6 +6,7 @@ const dashboardController = require("../../controller/faculty/dashboardControlle
 const teamController = require("../../controller/faculty/teamController");
 const studentController = require("../../controller/faculty/studentController");
 const companyController = require("../../controller/faculty/companyController");
+const analyticsController = require("../../controller/faculty/analyticsController");
 const { upload } = require("../../middleware/fileUpload");
 
 router.post("/login", facultyController.login);
@@ -72,6 +73,18 @@ router.post(
   "/company/:companyId/role",
   verifyTokenAndRole(),
   companyController.addCompanyRole
+);
+
+router.get(
+  "/analytics/filters",
+  verifyTokenAndRole(),
+  analyticsController.getFilters
+);
+
+router.get(
+  "/analytics",
+  verifyTokenAndRole(),
+  analyticsController.getAnalytics
 );
 
 module.exports = router;
