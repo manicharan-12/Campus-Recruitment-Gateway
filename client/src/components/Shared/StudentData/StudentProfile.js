@@ -453,12 +453,12 @@ const StudentProfile = () => {
           <motion.span
             whileHover={{ scale: 1.05 }}
             className={`px-6 py-2 rounded-full text-sm font-semibold ${
-              student.auth.isPlaced
+              student.placement.isPlaced
                 ? "bg-indigo-100 text-indigo-800"
                 : "bg-gray-100 text-gray-800"
             }`}
           >
-            {student.auth.isPlaced ? "PLACED" : "NOT PLACED"}
+            {student.placement.isPlaced ? "PLACED" : "NOT PLACED"}
           </motion.span>
         </div>
       </motion.div>
