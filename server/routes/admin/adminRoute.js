@@ -1,5 +1,6 @@
 const express = require("express");
 const router = express.Router();
+const multer = require("multer");
 const adminController = require("../../controller/admin/adminController");
 const dashboardController = require("../../controller/admin/dashboardController");
 const teamController = require("../../controller/admin/teamController");
@@ -21,7 +22,23 @@ router.get(
 router.post(
   "/add/university",
   verifyTokenAndRole(),
-  upload.single("logo"),
+  (req, res, next) => {
+    upload.single("logo")(req, res, (err) => {
+      if (err) {
+        if (err instanceof multer.MulterError) {
+          return res.status(400).json({ message: err.message });
+        } else if (err) {
+          return res.status(400).json({ message: err.message });
+        }
+      }
+
+      if (!req.file) {
+        return res.status(400).json({ error: "No file uploaded." });
+      }
+
+      next();
+    });
+  },
   universityController.addUniversityData
 );
 router.delete(

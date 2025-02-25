@@ -76,6 +76,7 @@ const AdminUniversity = () => {
       reset();
     },
     onError: (error) => {
+      console.log(error.response.data)
       toast.error(error.response?.data?.message || "Failed to add university");
     },
     onSettled: () => {

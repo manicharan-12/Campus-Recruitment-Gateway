@@ -5,6 +5,7 @@ const fileFilter = (req, file, cb) => {
   // Add file type validation
   const allowedTypes = [
     "image/jpeg",
+    "image/jpg",
     "image/png",
     "application/pdf",
     "application/msword",

@@ -29,11 +29,20 @@ exports.addUniversityData = async (req, res) => {
   session.startTransaction();
 
   try {
-    const { name, address, phone, website, email, head } = req.body;
+    const { name, address, website, email, head } = req.body;
 
     const headData = typeof head === "string" ? JSON.parse(head) : head;
+    parsedHead = head ? JSON.parse(head) : null;
 
-    if (!name || !address || !phone || !website || !email || !headData) {
+    if (
+      !name ||
+      !address ||
+      !website ||
+      !email ||
+      !parsedHead.name ||
+      !parsedHead.email ||
+      !parsedHead.phone
+    ) {
       throw new Error("All fields are required");
     }
 
@@ -65,7 +74,7 @@ exports.addUniversityData = async (req, res) => {
 
     const savedUniversity = await university.save({ session });
 
-    const defaultPassword = generateRandomPassword(); // Or generate a secure random password
+    const defaultPassword = generateRandomPassword();
     const faculty = new Faculty({
       name: headData.name,
       email: headData.email,
