@@ -926,7 +926,7 @@ const StudentProfile = () => {
             />
             <InfoField
               label="Placement Status"
-              value={student.auth.isPlaced ? "Placed" : "Not Placed"}
+              value={student.placement.isPlaced ? "Placed" : "Not Placed"}
               icon={Briefcase}
             />
             <InfoField
