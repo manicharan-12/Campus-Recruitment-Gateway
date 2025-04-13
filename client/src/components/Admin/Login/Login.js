@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { motion } from "framer-motion";
 import { useMutation } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
@@ -7,6 +7,7 @@ import { useSelector, useDispatch } from "react-redux";
 import Cookies from "js-cookie";
 import { toast } from "react-toastify";
 import axios from "axios";
+import { Eye, EyeOff } from "lucide-react";
 import { setTokenAndRole } from "../../../redux/authSlice";
 import CompanyBackground from "./DecorativeBackground";
 import { Alert, AlertDescription, AlertTitle } from "../../ui/alert";
@@ -21,6 +22,7 @@ const FormField = React.memo(
     disabled,
     placeholder,
     initialAnimation,
+    endIcon,
   }) => {
     return (
       <motion.div
@@ -34,24 +36,31 @@ const FormField = React.memo(
         >
           {label}
         </label>
-        <input
-          type={type}
-          id={name}
-          {...control.register(name, {
-            required: `${label} is required`,
-            ...(name === "email" && {
-              pattern: {
-                value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
-                message: "Invalid email address",
-              },
-            }),
-          })}
-          className={`mt-1 block w-full px-3 py-2 bg-white bg-opacity-50 border ${
-            error ? "border-red-500" : "border-gray-300"
-          } rounded-md text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-colors duration-300`}
-          placeholder={placeholder}
-          disabled={disabled}
-        />
+        <div className="relative">
+          <input
+            type={type}
+            id={name}
+            {...control.register(name, {
+              required: `${label} is required`,
+              ...(name === "email" && {
+                pattern: {
+                  value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
+                  message: "Invalid email address",
+                },
+              }),
+            })}
+            className={`mt-1 block w-full px-3 py-2 bg-white bg-opacity-50 border ${
+              error ? "border-red-500" : "border-gray-300"
+            } rounded-md text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-colors duration-300`}
+            placeholder={placeholder}
+            disabled={disabled}
+          />
+          {endIcon && (
+            <div className="absolute inset-y-0 right-0 flex items-center pr-3 mt-1">
+              {endIcon}
+            </div>
+          )}
+        </div>
         {error && (
           <motion.p
             initial={{ opacity: 0 }}
@@ -75,6 +84,12 @@ const ErrorAlert = React.memo(({ message }) => (
 
 const AdminLoginForm = React.memo(
   ({ onSubmit, isPending, error, control, errors }) => {
+    const [showPassword, setShowPassword] = useState(false);
+
+    const togglePasswordVisibility = () => {
+      setShowPassword(!showPassword);
+    };
+
     const formInputs = React.useMemo(
       () => [
         {
@@ -86,13 +101,26 @@ const AdminLoginForm = React.memo(
         },
         {
           name: "password",
-          type: "password",
+          type: showPassword ? "text" : "password",
           label: "Password",
           placeholder: "Enter your password",
           initialAnimation: { x: 50, opacity: 0 },
+          endIcon: (
+            <button
+              type="button"
+              onClick={togglePasswordVisibility}
+              className="text-gray-500 focus:outline-none"
+            >
+              {showPassword ? (
+                <EyeOff size={20} className="text-gray-500" />
+              ) : (
+                <Eye size={20} className="text-gray-500" />
+              )}
+            </button>
+          ),
         },
       ],
-      []
+      [showPassword]
     );
 
     return (

@@ -1,7 +1,8 @@
-import React, { useEffect, useCallback, useMemo } from "react";
+import React, { useEffect, useCallback, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm, Controller } from "react-hook-form";
+import { Eye, EyeOff } from "lucide-react";
 import FacultyBackground from "./DecorativeBackground";
 import { useNavigate } from "react-router-dom";
 import { useSelector, useDispatch } from "react-redux";
@@ -10,7 +11,16 @@ import { setTokenAndRole } from "../../../redux/authSlice";
 import { Alert, AlertDescription, AlertTitle } from "../../ui/alert";
 
 const FormField = React.memo(
-  ({ control, name, type, label, disabled, placeholder, initialAnimation }) => (
+  ({
+    control,
+    name,
+    type,
+    label,
+    disabled,
+    placeholder,
+    initialAnimation,
+    endAdornment,
+  }) => (
     <motion.div
       initial={initialAnimation}
       animate={{ x: 0, opacity: 1 }}
@@ -33,16 +43,23 @@ const FormField = React.memo(
         }}
         render={({ field, fieldState: { error } }) => (
           <>
-            <input
-              {...field}
-              type={type}
-              id={name}
-              className={`mt-1 block w-full px-3 py-2 bg-gray-50 border ${
-                error ? "border-red-500" : "border-gray-300"
-              } rounded-md text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-colors duration-300`}
-              placeholder={placeholder}
-              disabled={disabled}
-            />
+            <div className="relative">
+              <input
+                {...field}
+                type={type}
+                id={name}
+                className={`mt-1 block w-full px-3 py-2 bg-gray-50 border ${
+                  error ? "border-red-500" : "border-gray-300"
+                } rounded-md text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-colors duration-300`}
+                placeholder={placeholder}
+                disabled={disabled}
+              />
+              {endAdornment && (
+                <div className="absolute inset-y-0 right-0 flex items-center pr-3 mt-1">
+                  {endAdornment}
+                </div>
+              )}
+            </div>
             {error && (
               <motion.p
                 initial={{ opacity: 0 }}
@@ -75,6 +92,26 @@ const FacultyLoginForm = React.memo(({ onSubmit, isPending, error }) => {
     mode: "onBlur",
   });
 
+  const [showPassword, setShowPassword] = useState(false);
+
+  const togglePasswordVisibility = useCallback(() => {
+    setShowPassword((prev) => !prev);
+  }, []);
+
+  const passwordIcon = showPassword ? (
+    <Eye
+      size={20}
+      className="text-gray-500 cursor-pointer hover:text-gray-700"
+      onClick={togglePasswordVisibility}
+    />
+  ) : (
+    <EyeOff
+      size={20}
+      className="text-gray-500 cursor-pointer hover:text-gray-700"
+      onClick={togglePasswordVisibility}
+    />
+  );
+
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
       {error && <ErrorAlert message={error} />}
@@ -90,11 +127,12 @@ const FacultyLoginForm = React.memo(({ onSubmit, isPending, error }) => {
       <FormField
         control={control}
         name="password"
-        type="password"
+        type={showPassword ? "text" : "password"}
         label="Password"
         placeholder="Enter your password"
         disabled={isPending}
         initialAnimation={{ x: 50, opacity: 0 }}
+        endAdornment={passwordIcon}
       />
       <motion.button
         type="submit"

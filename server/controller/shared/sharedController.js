@@ -10,7 +10,6 @@ const {
 } = require("../../services/emailService");
 const mongoose = require("mongoose");
 
-
 exports.generateResetToken = (user, role) => {
   const payload = {
     email: user.email,
@@ -69,12 +68,14 @@ exports.forgotPassword = async (req, res) => {
     }
 
     let user;
+    console.log(role);
     if (role === "admin") {
       user = await Admin.findOne({ email });
     } else if (role === "faculty") {
       user = await Faculty.findOne({ email });
     } else if (role === "student") {
-      user = await University.findOne({ email });
+      user = await Student.findOne({ "personal.collegeEmail": email });
+      user.name=user.personal.firstName + " " + user.personal.lastName;
     } else {
       return res.status(400).json({ error: "Invalid role" });
     }

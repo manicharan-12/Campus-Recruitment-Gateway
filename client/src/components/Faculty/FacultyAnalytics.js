@@ -17,11 +17,6 @@ import {
   Pie,
   Cell,
   ResponsiveContainer,
-  RadarChart,
-  PolarGrid,
-  PolarAngleAxis,
-  PolarRadiusAxis,
-  Radar,
 } from "recharts";
 import { Download, Filter, RefreshCw, RotateCcw } from "lucide-react";
 import CustomSelect from "../Global/CustomSelect";
@@ -29,6 +24,39 @@ import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 
 const API_BASE_URL = `${process.env.REACT_APP_SERVER_API_URL}/faculty`;
+const COLORS = ["#10B981", "#EF4444", "#3B82F6", "#F59E0B", "#8B5CF6"];
+
+// Reusable component for summary cards
+const SummaryCard = ({ title, value, description }) => (
+  <motion.div
+    whileHover={{ scale: 1.05 }}
+    className="bg-white rounded-lg shadow-md p-6"
+  >
+    <div className="text-gray-500 mb-2">{title}</div>
+    <div className="text-3xl font-bold text-indigo-600">{value}</div>
+    <div className="mt-2 text-sm text-gray-500">{description}</div>
+  </motion.div>
+);
+
+// Reusable component for package statistics
+const PackageStatItem = ({ label, value, maxValue, color }) => (
+  <div>
+    <div className="text-sm text-gray-500 mb-1">{label}</div>
+    <div className="flex justify-between items-center">
+      <div className="w-full bg-gray-200 rounded-full h-2.5">
+        <motion.div
+          initial={{ width: 0 }}
+          animate={{ width: `${Math.min(100, (value / maxValue) * 100)}%` }}
+          transition={{ duration: 1, ease: "easeOut" }}
+          className={`bg-${color}-500 h-2.5 rounded-full`}
+        ></motion.div>
+      </div>
+      <span className={`ml-4 font-semibold text-${color}-600`}>
+        ₹{value.toLocaleString()} LPA
+      </span>
+    </div>
+  </div>
+);
 
 const FacultyAnalytics = () => {
   const token = Cookies.get("userCookie");
@@ -40,7 +68,7 @@ const FacultyAnalytics = () => {
   });
   const [isExporting, setIsExporting] = useState(false);
 
-  // TanStack React Query for filters
+  // Fetch filter options
   const {
     data: filterOptions = {
       degreePrograms: [],
@@ -59,7 +87,7 @@ const FacultyAnalytics = () => {
     staleTime: 1000 * 60 * 10, // 10 minutes
   });
 
-  // TanStack React Query for analytics data
+  // Fetch analytics data based on filters
   const {
     data: analytics,
     isLoading,
@@ -76,10 +104,12 @@ const FacultyAnalytics = () => {
     staleTime: 1000 * 60 * 5, // 5 minutes
   });
 
+  // Handle filter changes
   const handleFilterChange = (field, value) => {
     setFilters((prev) => ({ ...prev, [field]: value }));
   };
 
+  // Reset all filters
   const resetFilters = () => {
     setFilters({
       degreeProgram: "",
@@ -89,57 +119,56 @@ const FacultyAnalytics = () => {
     });
   };
 
+  // Export analytics to PDF
   const exportAnalytics = async () => {
+    if (!analytics) return;
+
     try {
       setIsExporting(true);
-
-      // Get the dashboard content
       const dashboardElement = document.getElementById("analytics-dashboard");
-
-      // Create a new PDF document
       const pdf = new jsPDF("p", "mm", "a4");
       let pdfHeight = 0;
 
-      // Add title with filter information
+      // Add title and filter information
       pdf.setFontSize(18);
       pdf.setTextColor(60, 70, 182);
       pdf.text("Faculty Analytics Dashboard", 20, 20);
 
-      // Add filter information
       pdf.setFontSize(12);
       pdf.setTextColor(100, 100, 100);
-      let filterText = "Filters: ";
+
+      // Build filter text
+      const filterParts = [];
       if (filters.degreeProgram)
-        filterText += `Degree: ${filters.degreeProgram}, `;
-      if (filters.branch) filterText += `Branch: ${filters.branch}, `;
-      if (filters.section) filterText += `Section: ${filters.section}, `;
+        filterParts.push(`Degree: ${filters.degreeProgram}`);
+      if (filters.branch) filterParts.push(`Branch: ${filters.branch}`);
+      if (filters.section) filterParts.push(`Section: ${filters.section}`);
       if (filters.graduationYear)
-        filterText += `Year: ${filters.graduationYear}, `;
-      if (filterText === "Filters: ") filterText += "None (All Data)";
-      else filterText = filterText.slice(0, -2); // Remove the last comma
+        filterParts.push(`Year: ${filters.graduationYear}`);
+
+      const filterText = filterParts.length
+        ? `Filters: ${filterParts.join(", ")}`
+        : "Filters: None (All Data)";
 
       pdf.text(filterText, 20, 30);
-      pdfHeight = 40; // Start after the header
+      pdfHeight = 40; // Start position after header
 
       // Get all chart containers
-      const chartContainers =
-        dashboardElement.querySelectorAll(".chart-container");
+      const chartContainers = dashboardElement.querySelectorAll(
+        ".chart-container, .bg-white.rounded-lg.shadow-md.p-6"
+      );
 
-      // Process each chart container
+      // Process each chart
       for (let i = 0; i < chartContainers.length; i++) {
         const canvas = await html2canvas(chartContainers[i], {
-          scale: 2, // Higher resolution
+          scale: 2,
           logging: false,
           useCORS: true,
           allowTaint: true,
         });
 
-        // Convert to image
-        const imgData = canvas.toDataURL("image/png");
-
-        // Check if we need a new page
+        // Check if a new page is needed
         if (pdfHeight + 70 > 277) {
-          // A4 height is about 297mm, leave some margin
           pdf.addPage();
           pdfHeight = 20;
         }
@@ -152,58 +181,62 @@ const FacultyAnalytics = () => {
         pdf.setTextColor(50, 50, 50);
         pdf.text(title, 20, pdfHeight);
 
-        // Add the chart image (scaled to fit the page width)
-        const imgWidth = 170; // A4 width is 210mm, leave margins
+        // Add chart image
+        const imgData = canvas.toDataURL("image/png");
+        const imgWidth = 170;
         const imgHeight = (canvas.height * imgWidth) / canvas.width;
         pdf.addImage(imgData, "PNG", 20, pdfHeight + 5, imgWidth, imgHeight);
 
-        // Move position for next chart
         pdfHeight += imgHeight + 20;
       }
 
       // Add summary statistics
       if (analytics) {
-        const totalStudents = Object.values(analytics.placementStats).reduce(
+        const placementStatsValues = Object.values(
+          analytics.placementStats || {}
+        );
+        const totalStudents = placementStatsValues.reduce(
           (sum, stat) => sum + (stat.totalStudents || 0),
           0
         );
-
-        const totalPlaced = Object.values(analytics.placementStats).reduce(
+        const totalPlaced = placementStatsValues.reduce(
           (sum, stat) => sum + (stat.placedStudents || 0),
           0
         );
-
         const placementRate =
           totalStudents > 0
             ? ((totalPlaced / totalStudents) * 100).toFixed(1)
             : "0.0";
-
         const avgPackage =
-          Object.values(analytics.placementStats).length > 0
+          placementStatsValues.length > 0
             ? (
-                Object.values(analytics.placementStats).reduce(
+                placementStatsValues.reduce(
                   (sum, stat) => sum + (stat.medianPackage || 0),
                   0
-                ) / Object.values(analytics.placementStats).length
+                ) / placementStatsValues.length
               ).toFixed(1)
             : "0.0";
 
-        pdf.setFontSize(14);
-        pdf.setTextColor(50, 50, 50);
-        pdf.text("Summary Statistics", 20, pdfHeight + 5);
+        // Check if a new page is needed
+        if (pdfHeight + 45 > 277) {
+          pdf.addPage();
+          pdfHeight = 20;
+        }
 
+        pdf.setFontSize(14);
+        pdf.text("Summary Statistics", 20, pdfHeight + 5);
         pdf.setFontSize(12);
         pdf.text(`Total Students: ${totalStudents}`, 20, pdfHeight + 15);
         pdf.text(`Placement Rate: ${placementRate}%`, 20, pdfHeight + 25);
         pdf.text(`Average Package: ₹${avgPackage} LPA`, 20, pdfHeight + 35);
       }
 
-      // Save the PDF
-      pdf.save(
-        `faculty-analytics${
-          filters.degreeProgram ? "-" + filters.degreeProgram : ""
-        }${filters.graduationYear ? "-" + filters.graduationYear : ""}.pdf`
-      );
+      // Generate filename with filters
+      const filename = `faculty-analytics${
+        filters.degreeProgram ? "-" + filters.degreeProgram : ""
+      }${filters.graduationYear ? "-" + filters.graduationYear : ""}.pdf`;
+
+      pdf.save(filename);
     } catch (error) {
       console.error("Error exporting PDF:", error);
       alert("Failed to export analytics. Please try again.");
@@ -212,6 +245,7 @@ const FacultyAnalytics = () => {
     }
   };
 
+  // Loading state
   if (isLoading) {
     return (
       <div className="flex justify-center items-center h-screen bg-gray-100">
@@ -228,26 +262,24 @@ const FacultyAnalytics = () => {
     );
   }
 
-  // Return early with a loading state if analytics data isn't ready
+  // Return early if no data
   if (!analytics) return null;
 
-  // Ensure all required objects exist with default values
+  // Ensure all data exists with default values
   const safeAnalytics = {
     placementStats: analytics.placementStats || {},
     cgpaRanges: analytics.cgpaRanges || {},
     companyStats: analytics.companyStats || {},
     roleStats: analytics.roleStats || {},
     backlogStats: analytics.backlogStats || { noBacklogs: 0, withBacklogs: 0 },
-    backlogDistribution: analytics.backlogStats?.backlogDistribution || {},
     industryStats: analytics.industryStats || {},
-    internshipStats: analytics.internshipStats || {},
   };
 
-  // Format data for charts - with null checks
+  // Prepare chart data
   const placementTrends = Object.entries(safeAnalytics.placementStats)
     .sort(([yearA], [yearB]) => Number(yearA) - Number(yearB))
     .map(([year, stats]) => ({
-      year: year,
+      year,
       placed: stats.placedStudents || 0,
       total: stats.totalStudents || 0,
       rate: stats.totalStudents
@@ -257,15 +289,11 @@ const FacultyAnalytics = () => {
 
   const cgpaData = Object.entries(safeAnalytics.cgpaRanges)
     .sort(([rangeA], [rangeB]) => {
-      // Sort CGPA ranges numerically
       const numA = parseFloat(rangeA.split("-")[0]) || 0;
       const numB = parseFloat(rangeB.split("-")[0]) || 0;
       return numA - numB;
     })
-    .map(([range, count]) => ({
-      range: range,
-      count: count || 0,
-    }));
+    .map(([range, count]) => ({ range, count: count || 0 }));
 
   const companyData = Object.entries(safeAnalytics.companyStats)
     .sort(([, a], [, b]) => b - a)
@@ -275,7 +303,7 @@ const FacultyAnalytics = () => {
   const roleData = Object.entries(safeAnalytics.roleStats)
     .sort(([, a], [, b]) => b - a)
     .map(([role, count]) => ({ role, count: count || 0 }))
-    .slice(0, 8); // Limit to top 8 roles for better visualization
+    .slice(0, 8);
 
   const backlogData = [
     { name: "No Backlogs", value: safeAnalytics.backlogStats.noBacklogs || 0 },
@@ -285,14 +313,7 @@ const FacultyAnalytics = () => {
     },
   ];
 
-  const backlogDistributionData = Object.entries(
-    safeAnalytics.backlogDistribution || {}
-  ).map(([backlogCount, studentCount]) => ({
-    backlogCount: backlogCount,
-    studentCount: studentCount || 0,
-  }));
-
-  // Calculate averages safely
+  // Calculate summary statistics
   const placementStatsValues = Object.values(safeAnalytics.placementStats);
   const averagePackage =
     placementStatsValues.length > 0
@@ -309,63 +330,71 @@ const FacultyAnalytics = () => {
         )
       : 0;
 
-  const COLORS = ["#10B981", "#EF4444", "#3B82F6", "#F59E0B", "#8B5CF6"];
+  // Prepare filter options
+  const selectOptions = {
+    degreeProgram: [
+      { value: "", label: "All Degree Programs" },
+      ...filterOptions.degreePrograms.map((program) => ({
+        value: program,
+        label: program,
+      })),
+    ],
+    branch: [
+      { value: "", label: "All Branches" },
+      ...filterOptions.branches.map((branch) => ({
+        value: branch,
+        label: branch,
+      })),
+    ],
+    section: [
+      { value: "", label: "All Sections" },
+      ...filterOptions.sections.map((section) => ({
+        value: section,
+        label: section,
+      })),
+    ],
+    graduationYear: [
+      { value: "", label: "All Graduation Years" },
+      ...filterOptions.graduationYears.map((year) => ({
+        value: year.toString(),
+        label: year.toString(),
+      })),
+    ],
+  };
 
-  const degreeProgramOptions = [
-    { value: "", label: "All Degree Programs" },
-    ...filterOptions.degreePrograms.map((program) => ({
-      value: program,
-      label: program,
-    })),
-  ];
+  const isFilterDisabled = (filterType) => {
+    switch (filterType) {
+      case "branch":
+        return !filters.degreeProgram;
+      case "section":
+        return !filters.branch;
+      default:
+        return false;
+    }
+  };
 
-  const branchOptions = [
-    { value: "", label: "All Branches" },
-    ...filterOptions.branches.map((branch) => ({
-      value: branch,
-      label: branch,
-    })),
-  ];
+  // Get selected options
+  const selectedOptions = {
+    degreeProgram: selectOptions.degreeProgram.find(
+      (option) => option.value === filters.degreeProgram
+    ),
+    branch: selectOptions.branch.find(
+      (option) => option.value === filters.branch
+    ),
+    section: selectOptions.section.find(
+      (option) => option.value === filters.section
+    ),
+    graduationYear: selectOptions.graduationYear.find(
+      (option) => option.value === filters.graduationYear
+    ),
+  };
 
-  const sectionOptions = [
-    { value: "", label: "All Sections" },
-    ...filterOptions.sections.map((section) => ({
-      value: section,
-      label: section,
-    })),
-  ];
-
-  const graduationYearOptions = [
-    { value: "", label: "All Graduation Years" },
-    ...filterOptions.graduationYears.map((year) => ({
-      value: year.toString(),
-      label: year.toString(),
-    })),
-  ];
-
-  const selectedDegreeProgram = degreeProgramOptions.find(
-    (option) => option.value === filters.degreeProgram
-  );
-
-  const selectedBranch = branchOptions.find(
-    (option) => option.value === filters.branch
-  );
-
-  const selectedSection = sectionOptions.find(
-    (option) => option.value === filters.section
-  );
-
-  const selectedGraduationYear = graduationYearOptions.find(
-    (option) => option.value === filters.graduationYear
-  );
-
-  // Calculate total students safely
+  // Calculate summary statistics
   const totalStudents = placementStatsValues.reduce(
     (sum, stat) => sum + (stat.totalStudents || 0),
     0
   );
 
-  // Calculate placement rate safely
   const totalPlaced = placementStatsValues.reduce(
     (sum, stat) => sum + (stat.placedStudents || 0),
     0
@@ -433,28 +462,30 @@ const FacultyAnalytics = () => {
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <CustomSelect
-            options={degreeProgramOptions}
-            value={selectedDegreeProgram}
+            options={selectOptions.degreeProgram}
+            value={selectedOptions.degreeProgram}
             onChange={(option) =>
               handleFilterChange("degreeProgram", option.value)
             }
             placeholder="Select Degree Program"
           />
           <CustomSelect
-            options={branchOptions}
-            value={selectedBranch}
+            options={selectOptions.branch}
+            value={selectedOptions.branch}
             onChange={(option) => handleFilterChange("branch", option.value)}
             placeholder="Select Branch"
+            isDisabled={isFilterDisabled("branch")}
           />
           <CustomSelect
-            options={sectionOptions}
-            value={selectedSection}
+            options={selectOptions.section}
+            value={selectedOptions.section}
             onChange={(option) => handleFilterChange("section", option.value)}
             placeholder="Select Section"
+            isDisabled={isFilterDisabled("section")}
           />
           <CustomSelect
-            options={graduationYearOptions}
-            value={selectedGraduationYear}
+            options={selectOptions.graduationYear}
+            value={selectedOptions.graduationYear}
             onChange={(option) =>
               handleFilterChange("graduationYear", option.value)
             }
@@ -538,10 +569,11 @@ const FacultyAnalytics = () => {
                 />
                 <Tooltip
                   formatter={(value, name) => {
+                    console.log(value)
                     if (name === "rate") return [`${value}%`, "Placement Rate"];
                     return [
                       value,
-                      name === "placed" ? "Placed Students" : "Total Students",
+                      name === "Placed" ? "Placed Students" : "Total Students",
                     ];
                   }}
                 />
@@ -581,7 +613,7 @@ const FacultyAnalytics = () => {
           </div>
         </motion.div>
 
-        {/* CGPA Distribution - Now each chart takes up 1 column in a 2-column grid */}
+        {/* CGPA Distribution*/}
         <motion.div
           initial={{ scale: 0.9, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
@@ -720,87 +752,6 @@ const FacultyAnalytics = () => {
             </ResponsiveContainer>
           </div>
         </motion.div>
-
-        {/* Performance Metrics Comparison */}
-        <motion.div
-          initial={{ scale: 0.9, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          transition={{ delay: 1.8 }}
-          className="col-span-1 md:col-span-2 bg-white rounded-lg shadow-md p-6 chart-container"
-        >
-          <h2 className="text-2xl font-bold text-gray-800 mb-4">
-            Performance Metrics Comparison
-          </h2>
-          <div className="h-80">
-            <ResponsiveContainer width="100%" height="100%">
-              <RadarChart
-                outerRadius={90}
-                data={[
-                  {
-                    metric: "Placement Rate",
-                    value: Math.min(100, Number.parseInt(placementRate) || 0),
-                  },
-                  {
-                    metric: "No Backlogs %",
-                    value: Math.min(
-                      100,
-                      Number.parseInt(
-                        (
-                          (safeAnalytics.backlogStats.noBacklogs /
-                            Math.max(
-                              1,
-                              safeAnalytics.backlogStats.noBacklogs +
-                                safeAnalytics.backlogStats.withBacklogs
-                            )) *
-                          100
-                        ).toFixed(0)
-                      ) || 0
-                    ),
-                  },
-                  {
-                    metric: "High CGPA (>8.5)",
-                    value: Math.min(
-                      100,
-                      (safeAnalytics.cgpaRanges["8.5-9.0"] || 0) +
-                        (safeAnalytics.cgpaRanges["9.0-9.5"] || 0) +
-                        (safeAnalytics.cgpaRanges["9.5-10.0"] || 0)
-                    ),
-                  },
-                  {
-                    metric: "Multiple Offers",
-                    value: Math.min(
-                      100,
-                      Math.max(
-                        0,
-                        Object.values(safeAnalytics.companyStats).reduce(
-                          (sum, value) => sum + (value || 0),
-                          0
-                        ) -
-                          placementStatsValues.reduce(
-                            (sum, stat) => sum + (stat.placedStudents || 0),
-                            0
-                          )
-                      )
-                    ),
-                  },
-                ]}
-              >
-                <PolarGrid />
-                <PolarAngleAxis dataKey="metric" />
-                <PolarRadiusAxis domain={[0, 100]} />
-                <Radar
-                  name="Performance"
-                  dataKey="value"
-                  stroke="#8884d8"
-                  fill="#8884d8"
-                  fillOpacity={0.6}
-                />
-                <Tooltip />
-                <Legend />
-              </RadarChart>
-            </ResponsiveContainer>
-          </div>
-        </motion.div>
       </div>
 
       {/* Package Statistics */}
@@ -856,34 +807,34 @@ const FacultyAnalytics = () => {
   );
 };
 
-const SummaryCard = ({ title, value, description }) => (
-  <motion.div
-    whileHover={{ scale: 1.05 }}
-    className="bg-white rounded-lg shadow-md p-6"
-  >
-    <div className="text-gray-500 mb-2">{title}</div>
-    <div className="text-3xl font-bold text-indigo-600">{value}</div>
-    <div className="mt-2 text-sm text-gray-500">{description}</div>
-  </motion.div>
-);
+// const SummaryCard = ({ title, value, description }) => (
+//   <motion.div
+//     whileHover={{ scale: 1.05 }}
+//     className="bg-white rounded-lg shadow-md p-6"
+//   >
+//     <div className="text-gray-500 mb-2">{title}</div>
+//     <div className="text-3xl font-bold text-indigo-600">{value}</div>
+//     <div className="mt-2 text-sm text-gray-500">{description}</div>
+//   </motion.div>
+// );
 
-const PackageStatItem = ({ label, value, maxValue, color }) => (
-  <div>
-    <div className="text-sm text-gray-500 mb-1">{label}</div>
-    <div className="flex justify-between items-center">
-      <div className="w-full bg-gray-200 rounded-full h-2.5">
-        <motion.div
-          initial={{ width: 0 }}
-          animate={{ width: `${Math.min(100, (value / maxValue) * 100)}%` }}
-          transition={{ duration: 1, ease: "easeOut" }}
-          className={`bg-${color}-500 h-2.5 rounded-full`}
-        ></motion.div>
-      </div>
-      <span className={`ml-4 font-semibold text-${color}-600`}>
-        ₹{value.toLocaleString()} LPA
-      </span>
-    </div>
-  </div>
-);
+// const PackageStatItem = ({ label, value, maxValue, color }) => (
+//   <div>
+//     <div className="text-sm text-gray-500 mb-1">{label}</div>
+//     <div className="flex justify-between items-center">
+//       <div className="w-full bg-gray-200 rounded-full h-2.5">
+//         <motion.div
+//           initial={{ width: 0 }}
+//           animate={{ width: `${Math.min(100, (value / maxValue) * 100)}%` }}
+//           transition={{ duration: 1, ease: "easeOut" }}
+//           className={`bg-${color}-500 h-2.5 rounded-full`}
+//         ></motion.div>
+//       </div>
+//       <span className={`ml-4 font-semibold text-${color}-600`}>
+//         ₹{value.toLocaleString()} LPA
+//       </span>
+//     </div>
+//   </div>
+// );
 
 export default FacultyAnalytics;

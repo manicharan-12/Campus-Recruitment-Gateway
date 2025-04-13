@@ -1,6 +1,7 @@
 const cron = require("node-cron");
 const { Student } = require("../models/Student");
 const { sendProfileUpdateReminderMail } = require("./emailService");
+const {sendProfileUpdateReminder} = require("./whatsappService")
 
 exports.scheduleProfileUpdateReminders = () => {
   // Validate cron expression

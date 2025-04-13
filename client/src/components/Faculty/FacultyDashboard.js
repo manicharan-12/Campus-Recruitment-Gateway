@@ -10,36 +10,16 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { useNavigate } from "react-router-dom";
-import { getDecodedToken, getUserId } from "../../utils/auth";
 import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
 import ErrorOverlay from "../Global/ErrorOverlay";
 import LoadingOverlay from "../Global/LoadingOverlay";
 import Cookies from "js-cookie";
+import { motion } from "framer-motion";
 
 const FacultyDashboard = () => {
   const navigate = useNavigate();
   const jwtToken = Cookies.get("userCookie");
-
-  // Sample insights data for faculty
-  const insights = {
-    totalStudents: 150,
-    activeAssignments: 8,
-    averageScore: 85,
-    submissionRate: 92,
-    upcomingDeadlines: 3,
-    courseAttendance: 88,
-  };
-
-  // Sample data for student performance trend
-  const performanceData = [
-    { month: "Jan", averageScore: 82, submissionRate: 88 },
-    { month: "Feb", averageScore: 85, submissionRate: 90 },
-    { month: "Mar", averageScore: 83, submissionRate: 87 },
-    { month: "Apr", averageScore: 88, submissionRate: 92 },
-    { month: "May", averageScore: 86, submissionRate: 89 },
-    { month: "Jun", averageScore: 89, submissionRate: 93 },
-  ];
 
   const fetchDashboardData = async () => {
     const response = await axios.get(
@@ -65,7 +45,6 @@ const FacultyDashboard = () => {
     retry: 3,
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
   });
-  
   const getGreeting = () => {
     const hour = new Date().getHours();
     if (hour < 12) return "Good Morning";
@@ -89,11 +68,29 @@ const FacultyDashboard = () => {
       return <ErrorOverlay statusCode={401} />;
   }
 
-  const { university, faculty } = data;
+  const { university, faculty, placementStats, academicYear } = data;
 
   if (!university || !faculty) {
     return <ErrorOverlay statusCode={404} message="Missing required data" />;
   }
+
+  const insights = {
+    totalPlacedStudents: data.studentInsights.totalPlacedStudents,
+    totalEligibleStudents: data.studentInsights.totalEligibleStudents,
+    highestPackage: data.studentInsights.highestPackage,
+    averagePackage: data.studentInsights.averagePackage,
+  };
+
+  const placementTrends = Object.entries(placementStats || {})
+    .sort(([yearA], [yearB]) => Number(yearA) - Number(yearB))
+    .map(([year, stats]) => ({
+      year: year,
+      placed: stats.placedStudents || 0,
+      total: stats.totalStudents || 0,
+      rate: stats.totalStudents
+        ? ((stats.placedStudents / stats.totalStudents) * 100).toFixed(1)
+        : "0.0",
+    }));
 
   return (
     <div className="p-8 space-y-8 pt-4 bg-gray-50">
@@ -155,72 +152,107 @@ const FacultyDashboard = () => {
 
       {/* Insights Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {Object.entries(insights).map(([key, value]) => (
-          <div
-            key={key}
-            className="bg-white p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow"
-          >
-            <h3 className="text-lg font-medium text-gray-500 capitalize">
-              {key.replace(/([A-Z])/g, " $1").trim()}
-            </h3>
-            <p className="text-3xl font-bold text-indigo-600 mt-2">
-              {value}
-              {key.includes("Rate") || key.includes("Attendance") ? "%" : ""}
-            </p>
-          </div>
-        ))}
+        {Object.entries(insights).map(([key, value]) => {
+          const formattedKey = key
+            .replace(/([A-Z])/g, " $1")
+            .trim()
+            .replace(/^Total /i, ""); // Removes "Total " from beginning if present
+
+          return (
+            <div
+              key={key}
+              className="bg-white p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow"
+            >
+              <h3 className="text-lg font-medium text-gray-500 capitalize">
+                {`Total ${formattedKey} of ${academicYear || "N/A"}`}
+              </h3>
+              <p className="text-3xl font-bold text-indigo-600 mt-2">
+                {value}
+                {key.includes("Rate") || key.includes("Attendance") ? "%" : ""}
+              </p>
+            </div>
+          );
+        })}
       </div>
 
-      {/* Performance Chart */}
-      <div className="bg-white p-6 rounded-lg shadow-md">
+      <motion.div
+        initial={{ scale: 0.9, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        transition={{ delay: 0.5 }}
+        className="bg-white p-6 rounded-lg shadow-md"
+      >
         <h2 className="text-2xl font-semibold text-gray-800 mb-6">
-          Student Performance Trends
+          Placement Trends Over Years
         </h2>
-        <div className="h-64">
+        <div className="h-96">
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={performanceData}>
+            <LineChart data={placementTrends}>
               <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="month" />
-              <YAxis />
-              <Tooltip />
+              <XAxis dataKey="year" padding={{ left: 20, right: 20 }} />
+              <YAxis
+                yAxisId="left"
+                domain={[0, "auto"]}
+                allowDecimals={false}
+                label={{
+                  value: "Students",
+                  angle: -90,
+                  position: "insideLeft",
+                }}
+              />
+              <YAxis
+                yAxisId="right"
+                orientation="right"
+                domain={[0, 100]}
+                label={{
+                  value: "Placement Rate %",
+                  angle: 90,
+                  position: "insideRight",
+                }}
+              />
+              <Tooltip
+                formatter={(value, name) => {
+                  if (name === "rate") return [`${value}%`, "Placement Rate"];
+                  return [
+                    value,
+                    name === "placed" ? "Placed Students" : "Total Students",
+                  ];
+                }}
+              />
               <Legend />
               <Line
+                yAxisId="left"
                 type="monotone"
-                dataKey="averageScore"
-                stroke="#4f46e5"
-                name="Average Score"
+                dataKey="placed"
+                stroke="#4F46E5"
+                name="Placed Students"
+                strokeWidth={2}
+                dot={{ r: 4 }}
+                activeDot={{ r: 6 }}
               />
               <Line
+                yAxisId="left"
                 type="monotone"
-                dataKey="submissionRate"
-                stroke="#06b6d4"
-                name="Submission Rate"
+                dataKey="total"
+                stroke="#10B981"
+                name="Total Students"
+                strokeWidth={2}
+                dot={{ r: 4 }}
+                activeDot={{ r: 6 }}
+              />
+              <Line
+                yAxisId="right"
+                type="monotone"
+                dataKey="rate"
+                stroke="#F59E0B"
+                name="Placement Rate %"
+                strokeWidth={2}
+                dot={{ r: 4 }}
+                activeDot={{ r: 6 }}
               />
             </LineChart>
           </ResponsiveContainer>
         </div>
-      </div>
-
-      {/* Recent Activity */}
-      <div className="bg-white p-6 rounded-lg shadow-md">
-        <h2 className="text-2xl font-semibold text-gray-800 mb-4">
-          Upcoming Deadlines
-        </h2>
-        <div className="space-y-4">
-          <div className="border-l-4 border-indigo-600 pl-4 py-2">
-            <p className="font-semibold">Research Project Submission</p>
-            <p className="text-gray-600">Due in 2 days</p>
-          </div>
-          <div className="border-l-4 border-indigo-600 pl-4 py-2">
-            <p className="font-semibold">Mid-term Exam</p>
-            <p className="text-gray-600">Due in 5 days</p>
-          </div>
-          <div className="border-l-4 border-indigo-600 pl-4 py-2">
-            <p className="font-semibold">Lab Report Submission</p>
-            <p className="text-gray-600">Due in 1 week</p>
-          </div>
-        </div>
-      </div>
+      </motion.div>
     </div>
   );
 };
