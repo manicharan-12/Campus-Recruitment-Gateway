@@ -7,6 +7,7 @@ const teamController = require("../../controller/faculty/teamController");
 const studentController = require("../../controller/faculty/studentController");
 const companyController = require("../../controller/faculty/companyController");
 const analyticsController = require("../../controller/faculty/analyticsController");
+const notificationController = require("../../controller/faculty/notificationController");
 const { upload } = require("../../middleware/fileUpload");
 
 router.post("/login", facultyController.login);
@@ -25,12 +26,6 @@ router.get(
   "/degree-programs",
   verifyTokenAndRole(),
   studentController.getDegreePrograms
-);
-
-router.post(
-  "/send-notification",
-  verifyTokenAndRole(),
-  studentController.sendNotification
 );
 
 router.get(
@@ -85,6 +80,24 @@ router.get(
   "/analytics",
   verifyTokenAndRole(),
   analyticsController.getAnalytics
+);
+
+router.post(
+  "/notifications/email",
+  verifyTokenAndRole(),
+  notificationController.sendEmailNotification
+);
+
+router.get(
+  "/notifications/whatsapp-templates/:notificationType",
+  verifyTokenAndRole(),
+  notificationController.getWhatsAppTemplates
+);
+
+router.post(
+  "/notifications/send-whatsapp",
+  verifyTokenAndRole(),
+  notificationController.sendWhatsappNotification
 );
 
 module.exports = router;

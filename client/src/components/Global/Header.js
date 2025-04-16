@@ -31,14 +31,14 @@ const Header = () => {
         </div>
 
         <div className="flex items-center space-x-4 relative">
-          <IconButton
+          {/* <IconButton
             icon={Bell}
             onClick={toggleNotification}
             isActive={isNotificationOpen}
           />
           <AnimatePresence>
             {isNotificationOpen && <NotificationPanel />}
-          </AnimatePresence>
+          </AnimatePresence> */}
 
           <IconButton
             icon={User}

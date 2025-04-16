@@ -19,7 +19,7 @@ exports.dashboard = async (req, res) => {
 
     const today = new Date();
     const year = today.getFullYear();
-    const month = today.getMonth(); // 0 = Jan, ..., 11 = Dec
+    const month = today.getMonth();
 
     const batchYear = month < 5 ? year : year + 1;
     const studentInsights = await Student.aggregate([

@@ -18,7 +18,7 @@ import Select from "react-select";
 import Cookies from "js-cookie";
 import * as XLSX from "xlsx";
 import CustomSelect from "../Global/CustomSelect";
-import NotificationButton from "../Global/NotificationButton";
+import NotificationButton from "../Global/Notification/NotificationButton";
 
 const defaultColumns = [
   { key: "fullName", label: "Full Name", path: "personal" },
@@ -27,6 +27,11 @@ const defaultColumns = [
     key: "collegeEmail",
     label: "College Email",
     path: "personal.collegeEmail",
+  },
+  {
+    key: "graduationYear",
+    label: "Graduation Year",
+    path: "academic.graduationYear",
   },
 ];
 
@@ -45,11 +50,6 @@ const availableColumns = [
   { key: "branch", label: "Branch", path: "academic.branch" },
   { key: "cgpa", label: "CGPA", path: "academic.cgpa" },
   { key: "backlogs", label: "Backlogs", path: "academic.backlogs" },
-  {
-    key: "graduationYear",
-    label: "Graduation Year",
-    path: "academic.graduationYear",
-  },
   {
     key: "tenthPercentage",
     label: "Tenth %",
@@ -593,10 +593,7 @@ const FilteredStudents = () => {
           </motion.button>
         </div>
         <NotificationButton
-          filteredEmails={localData.map(
-            (student) => student.personal.collegeEmail
-          )}
-          jwtToken={jwtToken}
+          students={localData.map((student) => student._id)}
         />
         <motion.button
           whileHover={{ scale: 1.02 }}

@@ -208,20 +208,3 @@ exports.getDegreePrograms = async (req, res) => {
   }
 };
 
-exports.sendNotification = async (req, res) => {
-  try {
-    const { emails, subject, content } = req.body;
-    await sendBulkNotification(emails, subject, content);
-    res.status(200).json({
-      status: "success",
-      message: "Notification sent successfully",
-    });
-  } catch (error) {
-    console.error("Error in sendNotification:", error);
-    res.status(500).json({
-      status: "error",
-      message: "Internal Server Error",
-      error: error.message,
-    });
-  }
-};
